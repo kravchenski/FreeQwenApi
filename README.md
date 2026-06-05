@@ -2,15 +2,25 @@
 
 ## Обновлённый fork ForgetMeAI
 
-Этот fork оптимизирован под практичные демо с AI-агентами и актуальные модели Qwen Chat:
+> Fork от [t.me/forgetmeai](https://t.me/forgetmeai) — практичные AI-инструменты, агенты и локальные прокси без лишней магии.
 
-- **Модели Qwen 3.7**: добавлены алиасы/маппинг `qwen3.7-max`, `qwen3.7-plus` и `qwen3.6-plus`.
-- **Синхронизация моделей**: `npm run models:sync` обновляет список моделей эндпоинта из landing-метаданных Qwen Chat.
-- **Smoke-проверка**: `npm run smoke` проверяет `/api/status`, `/api/models` и реальный ответ от `qwen3.7-max`.
-- **Быстрый старт для агентов**: примеры для Hermes Agent и Claude Code через LiteLLM.
-- **Health-эндпоинт**: `GET /api/health` для быстрой проверки готовности Docker/OpenWebUI/LiteLLM.
+Этот fork подготовлен под видео/демо и ежедневное использование: актуальные модели Qwen Chat, OpenAI-совместимый локальный endpoint, быстрые проверки, Open WebUI, Hermes Agent и LiteLLM/Claude Code.
 
-Быстрое демо:
+### Коротко: что добавлено в fork
+
+- **Актуальные модели Qwen Chat**: добавлены `qwen3.7-max`, `qwen3.7-plus`, `qwen3.6-plus`; список можно обновлять командой `npm run models:sync`. Полный отчёт: [docs/QWEN_CHAT_MODELS.md](docs/QWEN_CHAT_MODELS.md).
+- **Быстрый demo-flow**: авторизация, синхронизация моделей, запуск endpoint и smoke-тест в несколько команд. Полная инструкция: [docs/FORK_DEMO_QUICKSTART.md](docs/FORK_DEMO_QUICKSTART.md).
+- **Smoke-проверка**: `npm run smoke` проверяет `/api/status`, `/api/models` и реальный ответ модели `qwen3.7-max`, чтобы перед записью/демо не ловить сюрпризы.
+- **Health endpoint**: `GET /api/health` для Docker, Open WebUI, LiteLLM и простых readiness-checks.
+- **OpenAI-compatible API**: можно подключать OpenAI SDK, curl, Open WebUI, Hermes Agent, LiteLLM и другие инструменты через `http://localhost:3264/api`.
+- **Hermes Agent**: готовый пример custom provider лежит в [examples/hermes/config-snippet.yaml](examples/hermes/config-snippet.yaml).
+- **Claude Code через LiteLLM**: готовый bridge-конфиг лежит в [examples/litellm/qwen_litellm.yaml](examples/litellm/qwen_litellm.yaml).
+- **Генерация изображений и видео через `chatType`**: `t2i` для картинок, `t2v` для видео, server-side/client-side polling для задач. Полная инструкция: [IMAGE_VIDEO_GENERATION_GUIDE.md](IMAGE_VIDEO_GENERATION_GUIDE.md).
+- **Open WebUI**: подключение чата и генерации изображений, Docker-настройки и типовые ошибки. Полная инструкция: [docs/OPENWEBUI_SETUP.md](docs/OPENWEBUI_SETUP.md).
+- **DashScope/Qwen Image API**: отдельные OpenAI-compatible endpoints для изображений, модели `qwen-image-*` и `wan*`. Полная инструкция: [docs/IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md).
+- **Мультиаккаунты**: добавление/перелогин/удаление аккаунтов, статусы `OK` / `WAIT` / `INVALID`, автоматическая round-robin ротация при лимитах.
+
+### Быстрый запуск
 
 ```bash
 npm install
@@ -21,14 +31,13 @@ SKIP_ACCOUNT_MENU=true npm start
 npm run smoke
 ```
 
-Полезная документация в этом fork:
+Endpoint:
 
-- `docs/FORK_DEMO_QUICKSTART.md`
-- `docs/QWEN_CHAT_MODELS.md`
-- `examples/hermes/config-snippet.yaml`
-- `examples/litellm/qwen_litellm.yaml`
+```text
+http://localhost:3264/api
+```
 
-> Это локальный прокси/эндпоинт для Qwen Chat, а не локальная модель, запущенная на вашей видеокарте. Используйте для экспериментов; не рассчитывайте на production-стабильность.
+> Важно: это локальный прокси/endpoint для Qwen Chat, а не локальная модель, запущенная на вашей видеокарте. Используйте для экспериментов и демо; не рассчитывайте на production-стабильность, потому что лимиты Qwen Chat, токены, аккаунты и совместимость API могут меняться.
 
 ---
 

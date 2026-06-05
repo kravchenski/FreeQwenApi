@@ -13,6 +13,7 @@ import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
 import { listTokens, markInvalid, markRateLimited, markValid } from './tokenManager.js';
+import { FORGETMEAI_WATERMARK } from '../utils/branding.js';
 
 // Функция для генерирования детерминированного chatId на основе истории
 function generateChatIdFromHistory(messages) {
@@ -609,6 +610,7 @@ router.get('/health', async (req, res) => {
         res.json({
             ok: availableAccounts > 0,
             service: 'FreeQwenApi',
+            watermark: FORGETMEAI_WATERMARK,
             baseUrl: '/api',
             models: modelData.models.length,
             accounts: {

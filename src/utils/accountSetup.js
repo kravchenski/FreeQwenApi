@@ -8,6 +8,7 @@ import { loadTokens, saveTokens, markValid, removeToken } from '../api/tokenMana
 import { loadAuthToken } from '../browser/session.js';
 import { logInfo, logError, logWarn } from '../logger/index.js';
 import { prompt } from './prompt.js';
+import { formatForgetMeAiWatermark } from './branding.js';
 import { SESSION_DIR, ACCOUNTS_DIR } from '../config.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,6 +22,7 @@ function ensureAccountDir(id) {
 export async function addAccountInteractive() {
     logInfo('======================================================');
     logInfo('Добавление нового аккаунта Qwen');
+    logInfo(formatForgetMeAiWatermark());
     logInfo('Браузер откроется, войдите в систему, затем вернитесь к консоли.');
     logInfo('======================================================');
 
@@ -62,6 +64,7 @@ export async function addAccountInteractive() {
 export async function interactiveAccountMenu() {
     while (true) {
         console.log('\n=== Меню управления аккаунтами ===');
+        console.log(formatForgetMeAiWatermark());
         console.log('1 - Добавить новый аккаунт');
         console.log('2 - Завершить');
         const choice = await prompt('Ваш выбор (1/2): ');
@@ -91,6 +94,7 @@ export async function reloginAccountInteractive() {
     const account = invalids[num - 1];
 
     logInfo(`Повторная авторизация для ${account.id}`);
+    logInfo(formatForgetMeAiWatermark());
     const ok = await initBrowser(true, true);
     if (!ok) { logError('Не удалось запустить браузер.'); return; }
 
