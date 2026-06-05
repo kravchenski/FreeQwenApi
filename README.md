@@ -28,6 +28,7 @@ http://localhost:3264/api
 - **Open WebUI**: можно подключить как OpenAI-compatible backend.
 - **Hermes Agent / LiteLLM / Claude Code**: готовые примеры конфигов для локальных AI-агентов.
 - **Health/smoke tooling**: `/api/health`, `/api/status`, `/api/models`, `npm run smoke`, `npm run models:sync`.
+- **Экспериментальный DeepSeek Web Proxy**: отдельный запуск `npm run deepseek:start` для официального `chat.deepseek.com`, см. [`docs/DEEPSEEK_WEB_PROXY.md`](docs/DEEPSEEK_WEB_PROXY.md).
 - **ForgetMeAI branding**: watermark `t.me/forgetmeai` в README, CLI и health/media metadata.
 
 ## Быстрый старт

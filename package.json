@@ -18,6 +18,9 @@
         "example:file-upload": "node examples/file-upload/upload-example.js",
         "example:streaming-test": "node examples/streaming-test.js",
         "auth": "node scripts/auth.js",
+        "deepseek:auth": "node scripts/deepseek_auth.js",
+        "deepseek:start": "node deepseek.js",
+        "deepseek:smoke": "node scripts/deepseek_smoke.js",
         "models:sync": "node scripts/sync_models.js",
         "smoke": "node scripts/smoke_test.js"
     },
