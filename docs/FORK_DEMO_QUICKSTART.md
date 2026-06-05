@@ -13,7 +13,7 @@ npm install
 npm run auth
 ```
 
-Не показывайте на экране `session/`, cookies и файлы с токенами.
+Не публикуйте `session/`, cookies и файлы с токенами.
 
 ## 2. Синхронизируйте актуальные модели Qwen Chat
 
@@ -120,7 +120,7 @@ export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
 claude --model qwen3.7-max
 ```
 
-## Как позиционировать в видео
+## Важное уточнение
 
 Можно говорить так:
 
