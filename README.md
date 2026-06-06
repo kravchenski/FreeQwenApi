@@ -2,7 +2,7 @@
 
 # FreeQwenApi
 
-**Turn Qwen Chat into a local OpenAI-compatible API for agents, apps, and experiments.**
+**Turn Qwen Chat and DeepSeek Web into local OpenAI-compatible APIs for agents, apps, and experiments.**
 
 [![CI](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml)
 [![Container](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml)
@@ -10,21 +10,22 @@
 [![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun&logoColor=000)](https://bun.sh)
 [![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)](#api-reference)
 
-[Quick start](#quick-start) · [pi agent](#pi-agent) · [Open WebUI](#open-webui) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
+[Quick start](#quick-start) · [DeepSeek](#deepseek-web) · [pi agent](#pi-agent) · [Open WebUI](#open-webui) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
 
 </div>
 
-FreeQwenApi is an unofficial, browser-backed proxy for [Qwen Chat](https://chat.qwen.ai/).
-It signs in with your Qwen Chat account, preserves the browser session, and exposes a
-local API compatible with OpenAI Chat Completions.
+FreeQwenApi is an unofficial, browser-backed proxy for
+[Qwen Chat](https://chat.qwen.ai/) and [DeepSeek Web](https://chat.deepseek.com/).
+It preserves authenticated browser sessions and exposes local APIs compatible
+with OpenAI Chat Completions.
 
 Use it to connect Qwen Chat to **pi agent**, OpenAI SDKs, Open WebUI, LiteLLM,
 Hermes Agent, custom scripts, and other OpenAI-compatible clients.
 
 > [!IMPORTANT]
-> This project is not an official Alibaba Cloud or Qwen API, and it does not run a
-> model locally. Qwen Chat can change its internal API, rate limits, or account
-> behavior at any time. Use the official provider API for production workloads.
+> This project is not an official Alibaba Cloud, Qwen, or DeepSeek API, and it
+> does not run models locally. Provider web APIs, rate limits, and account
+> behavior can change at any time. Use official provider APIs for production.
 
 ## Highlights
 
@@ -34,6 +35,7 @@ Hermes Agent, custom scripts, and other OpenAI-compatible clients.
 - **Multi-account rotation** with rate-limit and invalid-session tracking.
 - **Conversation continuity** with chat IDs, parent IDs, and scoped sessions.
 - **Current Qwen model discovery** from Qwen Chat metadata.
+- **DeepSeek Web support** with PoW solving, reasoning mode, and persistent sessions.
 - **Bun-first runtime** with a reproducible `bun.lock`.
 - **Docker image** based on Bun and system Chromium.
 - **CI/CD** for tests, Bun build validation, Docker builds, and GHCR releases.
@@ -43,13 +45,13 @@ Hermes Agent, custom scripts, and other OpenAI-compatible clients.
 ```text
 OpenAI-compatible client
          |
-         | POST /api/chat/completions
-         v
-  FreeQwenApi on Bun
+         +--> Qwen proxy     http://127.0.0.1:3264/api
+         |      |
+         |      +--> Qwen Chat web API
          |
-         | browser session + Qwen Chat web API
-         v
-      Qwen Chat
+         +--> DeepSeek proxy http://127.0.0.1:3265/api
+                |
+                +--> DeepSeek Web API + PoW
 ```
 
 The proxy keeps authentication data locally under `session/`. Requests are mapped
@@ -149,6 +151,68 @@ for await (const chunk of stream) {
 
 More examples are available in [`examples/`](examples/README.md).
 
+## DeepSeek Web
+
+DeepSeek runs as a separate proxy because its web API uses different sessions,
+payloads, SSE events, and a Proof-of-Work challenge.
+
+```bash
+bun run start:deepseek
+# or install dependencies, validate, and start:
+./start-deepseek.sh
+```
+
+The startup menu matches the Qwen flow:
+
+```text
+1 - Register or add a new account
+2 - Relogin an account
+3 - Start the proxy
+4 - Remove an account
+```
+
+Registration opens a normal system Chromium with a persistent profile under
+`session/deepseek/browser-profile`. Complete registration or sign in, wait for
+the DeepSeek chat interface, return to the terminal, and press Enter. The proxy
+captures the authenticated request token and verifies the `ds_session_id`
+cookie before saving the account.
+
+Manage accounts directly:
+
+```bash
+bun run auth:deepseek -- --list
+bun run auth:deepseek -- --add
+bun run auth:deepseek -- --relogin
+bun run auth:deepseek -- --remove
+```
+
+The DeepSeek API is available at:
+
+```text
+http://127.0.0.1:3265/api
+```
+
+Test it:
+
+```bash
+curl http://127.0.0.1:3265/api/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "deepseek-default",
+    "messages": [{"role": "user", "content": "Hello"}],
+    "stream": false
+  }'
+```
+
+DeepSeek presets:
+
+| Model | Mode |
+| --- | --- |
+| `deepseek-default` | General chat and coding |
+| `deepseek-reasoner` | Thinking/reasoning |
+| `deepseek-expert` | Expert model route |
+| `deepseek-search` | Web-search-enabled route |
+
 ## pi Agent
 
 FreeQwenApi includes a ready-to-use custom provider for
@@ -173,6 +237,16 @@ Available presets:
 
 See [`examples/pi-agent/README.md`](examples/pi-agent/README.md) for configuration
 details.
+
+For DeepSeek, keep the DeepSeek proxy running and install its Pi configuration:
+
+```bash
+cp examples/pi-agent/deepseek-models.json ~/.pi/agent/models.json
+pi --provider freedeepseek --model deepseek-default
+```
+
+Use `deepseek-reasoner` for reasoning mode. Pi tool loops reuse one native
+DeepSeek session, and conversational replies do not trigger shell tools.
 
 ## Open WebUI
 
@@ -332,6 +406,10 @@ Multiple active accounts are selected in round-robin order. Rate-limited
 accounts are temporarily skipped, while invalid accounts are marked for
 reauthentication.
 
+DeepSeek accounts are stored separately under `session/deepseek/` and managed
+with `bun run auth:deepseek`. Multiple valid DeepSeek accounts are also selected
+round-robin.
+
 To protect the local proxy itself, add allowed bearer tokens to
 `src/Authorization.txt`, one token per line. An empty or missing file disables
 proxy-level authentication.
@@ -344,6 +422,12 @@ Create a local `.env` or export environment variables before starting the proxy.
 | --- | --- | --- |
 | `HOST` | `0.0.0.0` | HTTP bind address |
 | `PORT` | `3264` | HTTP port |
+| `DEEPSEEK_PORT` | `3265` | DeepSeek proxy HTTP port |
+| `DEEPSEEK_BASE_URL` | `https://chat.deepseek.com` | DeepSeek Web origin |
+| `DEEPSEEK_CHROME_PATH` | `/usr/bin/chromium` | Normal browser used for DeepSeek registration |
+| `DEEPSEEK_BROWSER_PROFILE` | `session/deepseek/browser-profile` | Persistent DeepSeek browser profile |
+| `DEEPSEEK_SESSION_DIR` | `session/deepseek` | Saved DeepSeek accounts and cookies |
+| `DEEPSEEK_TOKEN` | unset | Optional non-interactive DeepSeek token fallback |
 | `DEFAULT_MODEL` | `qwen-max-latest` | Default chat model |
 | `SKIP_ACCOUNT_MENU` | `false` | Start without the interactive account menu |
 | `NON_INTERACTIVE` | `false` | Alias for non-interactive startup |
@@ -450,6 +534,9 @@ Useful commands:
 | `bun run start:full` | Install, validate, authenticate, sync models, and start |
 | `bun run dev` | Start with Bun watch mode |
 | `bun run auth` | Manage Qwen accounts |
+| `bun run start:deepseek` | Start the DeepSeek account menu and proxy |
+| `bun run dev:deepseek` | Start the DeepSeek proxy with Bun watch mode |
+| `bun run auth:deepseek` | Manage DeepSeek accounts |
 | `bun run models:sync` | Refresh Qwen model metadata |
 | `bun run smoke` | Test a running authenticated proxy |
 | `bun run test` | Run offline Bun tests |
@@ -516,6 +603,26 @@ Install Chromium and set its executable explicitly:
 
 ```bash
 CHROME_PATH=/usr/bin/chromium bun run auth
+```
+
+### Google rejects DeepSeek registration
+
+DeepSeek registration uses a normal system browser and persistent profile,
+instead of launching an automated Puppeteer browser. If Google still rejects
+system Chromium, point the flow at an installed Google Chrome binary:
+
+```bash
+DEEPSEEK_CHROME_PATH=/path/to/google-chrome bun run auth:deepseek -- --add
+```
+
+### Pi cannot connect to DeepSeek
+
+Keep the DeepSeek proxy running before starting Pi:
+
+```bash
+bun run start:deepseek
+curl http://127.0.0.1:3265/api/models
+pi --provider freedeepseek --model deepseek-default
 ```
 
 ### The proxy starts but requests fail
