@@ -596,7 +596,7 @@ export function recoverSimpleToolCalls(text) {
     return calls;
 }
 
-function parseToolCallJson(content) {
+export function parseToolCallJson(content) {
     if (typeof content !== 'string') return null;
     let text = content.trim();
     const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);

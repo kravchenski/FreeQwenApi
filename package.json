@@ -10,10 +10,12 @@
     },
     "scripts": {
         "start": "bun run index.ts",
+        "start:deepseek": "bun run deepseek.ts",
         "start:full": "./start.sh",
         "dev": "bun --watch index.ts",
+        "dev:deepseek": "bun --watch deepseek.ts",
         "test": "bun test ./test",
-        "check": "bun build index.ts --target=bun --external typescript --outdir=.build-check",
+        "check": "bun build index.ts deepseek.ts --target=bun --external typescript --outdir=.build-check",
         "ci": "bun run test && bun run check",
         "example:stream": "bun run examples/openai-sdk/streaming.js",
         "example:simple": "bun run examples/openai-sdk/simple.js",

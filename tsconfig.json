@@ -10,6 +10,7 @@
   },
   "include": [
     "index.ts",
+    "deepseek.ts",
     "src/**/*.ts",
     "scripts/**/*.ts",
     "test/**/*.ts"
