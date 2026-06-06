@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.6
-FROM node:20-slim AS base
+FROM oven/bun:1.3.14-slim AS base
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
@@ -8,23 +8,23 @@ RUN apt-get update \
       libxdamage1 libxrandr2 xdg-utils ca-certificates \
  && rm -rf /var/lib/apt/lists/*
 
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     CHROME_PATH=/usr/bin/chromium \
     NODE_ENV=production
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci --omit=dev
+COPY package.json bun.lock ./
+RUN bun install --frozen-lockfile --production
 
 COPY . .
 
 RUN mkdir -p /app/session /app/logs /app/uploads \
- && useradd -m appuser \
- && chown -R appuser:appuser /app
+ && chown -R bun:bun /app
 
-USER appuser
+USER bun
 
 EXPOSE 3264
 
-CMD ["node", "index.js"]
+CMD ["bun", "run", "index.js"]

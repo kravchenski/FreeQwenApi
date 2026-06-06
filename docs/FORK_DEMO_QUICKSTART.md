@@ -9,8 +9,8 @@
 ## 1. Один раз авторизуйтесь
 
 ```bash
-npm install
-npm run auth
+bun install
+bun run auth
 ```
 
 Не публикуйте `session/`, cookies и файлы с токенами.
@@ -18,7 +18,7 @@ npm run auth
 ## 2. Синхронизируйте актуальные модели Qwen Chat
 
 ```bash
-npm run models:sync
+bun run models:sync
 ```
 
 Команда читает публичные prerendered-метаданные моделей с `https://chat.qwen.ai/`, объединяет их с `src/AvailableModels.txt` и записывает отчёт сюда:
@@ -30,7 +30,7 @@ docs/QWEN_CHAT_MODELS.md
 ## 3. Запустите эндпоинт
 
 ```bash
-SKIP_ACCOUNT_MENU=true npm start
+SKIP_ACCOUNT_MENU=true bun start
 ```
 
 Эндпоинт:
@@ -44,7 +44,7 @@ http://localhost:3264/api
 В другом терминале:
 
 ```bash
-npm run smoke
+bun run smoke
 ```
 
 Модель для проверки по умолчанию:
@@ -56,7 +56,7 @@ qwen3.7-max
 Можно заменить:
 
 ```bash
-QWEN_PROXY_SMOKE_MODEL=qwen3.7-plus npm run smoke
+QWEN_PROXY_SMOKE_MODEL=qwen3.7-plus bun run smoke
 ```
 
 ## 5. Проверка через OpenAI SDK / curl

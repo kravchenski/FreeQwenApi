@@ -1,10 +1,10 @@
 // Пример использования OpenAI SDK с прокси для Qwen AI - обычный запрос
-// Установка: npm install openai
+// Установка: bun add openai
 
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-    baseURL: 'http://localhost:3264/api', 
+    baseURL: 'http://localhost:3264/api',
     apiKey: 'dummy-key', // Ключ не используется, но требуется для SDK
 });
 
@@ -16,7 +16,7 @@ async function simpleRequest() {
             messages: [
                 { role: 'user', content: 'Напиши 5 интересных фактов о космосе' }
             ],
-            model: 'qwen-max-latest', 
+            model: 'qwen-max-latest',
         });
 
         console.log('Ответ от Qwen:\n');
@@ -29,4 +29,4 @@ async function simpleRequest() {
 }
 
 // Запуск
-simpleRequest(); 
+simpleRequest();

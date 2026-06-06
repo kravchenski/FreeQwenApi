@@ -1,10 +1,10 @@
 // Пример использования OpenAI SDK для анализа изображения
-// Установка: npm install openai
+// Установка: bun add openai
 
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-    baseURL: 'http://localhost:3264/api', 
+    baseURL: 'http://localhost:3264/api',
     apiKey: 'dummy-key', // Ключ не используется, но требуется для SDK
 });
 
@@ -18,7 +18,7 @@ async function analyzeImage() {
 
         const completion = await openai.chat.completions.create({
             messages: [
-                { 
+                {
                     role: 'user',
                     content: [
                         {
@@ -45,4 +45,4 @@ async function analyzeImage() {
 }
 
 // Запуск
-analyzeImage(); 
+analyzeImage();

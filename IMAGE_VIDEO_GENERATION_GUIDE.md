@@ -410,10 +410,10 @@ done
 
 ```bash
 # Проверить все три типа генерации (чат, изображение, видео)
-npm run test:features
+bun run test:features
 
 # Сравнить server-side и client-side polling для видео
-npm run test:video-polling
+bun run test:video-polling
 ```
 
 ---

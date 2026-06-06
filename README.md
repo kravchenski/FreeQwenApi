@@ -1,371 +1,522 @@
-# FreeQwenApi — ForgetMeAI fork
+<div align="center">
 
-> **Локальный OpenAI-compatible прокси к Qwen Chat** от [t.me/forgetmeai](https://t.me/forgetmeai).  
-> Текст, модели Qwen 3.7, файлы, Open WebUI, Hermes/LiteLLM, а теперь ещё генерация изображений и видео через Qwen Chat.
+# FreeQwenApi
 
-![ForgetMeAI](https://img.shields.io/badge/ForgetMeAI-t.me%2Fforgetmeai-blue)
-![API](https://img.shields.io/badge/API-OpenAI--compatible-green)
-![Qwen](https://img.shields.io/badge/Qwen-Chat-purple)
+**Turn Qwen Chat into a local OpenAI-compatible API for agents, apps, and experiments.**
 
-## Что это такое
+[![CI](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml)
+[![Container](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml)
+[![GitHub stars](https://img.shields.io/github/stars/kravchenski/FreeQwenApi?style=flat)](https://github.com/kravchenski/FreeQwenApi/stargazers)
+[![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun&logoColor=000)](https://bun.sh)
+[![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)](#api-reference)
 
-FreeQwenApi превращает веб-аккаунт Qwen Chat в локальный API endpoint:
+[Quick start](#quick-start) · [pi agent](#pi-agent) · [Open WebUI](#open-webui) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
+
+</div>
+
+FreeQwenApi is an unofficial, browser-backed proxy for [Qwen Chat](https://chat.qwen.ai/).
+It signs in with your Qwen Chat account, preserves the browser session, and exposes a
+local API compatible with OpenAI Chat Completions.
+
+Use it to connect Qwen Chat to **pi agent**, OpenAI SDKs, Open WebUI, LiteLLM,
+Hermes Agent, custom scripts, and other OpenAI-compatible clients.
+
+> [!IMPORTANT]
+> This project is not an official Alibaba Cloud or Qwen API, and it does not run a
+> model locally. Qwen Chat can change its internal API, rate limits, or account
+> behavior at any time. Use the official provider API for production workloads.
+
+## Highlights
+
+- **OpenAI-compatible chat** with regular and streaming responses.
+- **Agent tool calls** through an OpenAI-compatible adapter for pi agent and Hermes.
+- **Multimodal input**, file upload, image generation, and video generation.
+- **Multi-account rotation** with rate-limit and invalid-session tracking.
+- **Conversation continuity** with chat IDs, parent IDs, and scoped sessions.
+- **Current Qwen model discovery** from Qwen Chat metadata.
+- **Bun-first runtime** with a reproducible `bun.lock`.
+- **Docker image** based on Bun and system Chromium.
+- **CI/CD** for tests, Bun build validation, Docker builds, and GHCR releases.
+
+## How It Works
 
 ```text
-http://localhost:3264/api
+OpenAI-compatible client
+         |
+         | POST /api/chat/completions
+         v
+  FreeQwenApi on Bun
+         |
+         | browser session + Qwen Chat web API
+         v
+      Qwen Chat
 ```
 
-Это **не локальная модель на вашей видеокарте** и **не официальный API Alibaba/Qwen**. Это практичный browser-based proxy: вы авторизуетесь в Qwen Chat, проект сохраняет сессию и даёт локальный OpenAI-compatible API для ваших инструментов.
+The proxy keeps authentication data locally under `session/`. Requests are mapped
+to Qwen Chat models and translated back into OpenAI-compatible responses.
 
-## Возможности fork
+## Quick Start
 
-- **Chat Completions API**: `POST /api/chat/completions`, совместимый с OpenAI SDK, Open WebUI, LiteLLM и агентами.
-- **Актуальные модели Qwen Chat**: `qwen3.7-max`, `qwen3.7-plus`, `qwen3.6-plus` и другие модели из `src/AvailableModels.txt`.
-- **Генерация изображений через Qwen Chat**: `POST /api/images/generations` без `DASHSCOPE_API_KEY`.
-- **Генерация видео через Qwen Chat**: `POST /api/videos/generations` + polling задач через `GET /api/tasks/status/:taskId`.
-- **Мультиаккаунты**: добавление, перелогин, удаление, статусы `OK` / `WAIT` / `INVALID`, автоматическая round-robin ротация при лимитах.
-- **Загрузка файлов**: upload endpoint для файлов и вложений Qwen.
-- **Open WebUI**: можно подключить как OpenAI-compatible backend.
-- **Hermes Agent / LiteLLM / Claude Code**: готовые примеры конфигов для локальных AI-агентов.
-- **Health/smoke tooling**: `/api/health`, `/api/status`, `/api/models`, `npm run smoke`, `npm run models:sync`.
-- **ForgetMeAI branding**: watermark `t.me/forgetmeai` в README, CLI и health/media metadata.
+### Requirements
 
-## Быстрый старт
+- [Bun](https://bun.sh/) 1.2 or newer
+- Chromium or Chrome
+- A Qwen Chat account
+
+### Install and authenticate
 
 ```bash
-git clone https://github.com/ForgetMeAI/FreeQwenApi
+git clone https://github.com/kravchenski/FreeQwenApi.git
 cd FreeQwenApi
-npm install
-npm run auth
-npm run models:sync
-SKIP_ACCOUNT_MENU=true npm start
+
+./start.sh
 ```
 
-В другом терминале:
+The full startup script installs dependencies, runs offline checks, opens the
+authentication flow when no active account exists, synchronizes models, and
+starts the proxy. Sign in to Qwen Chat and return to the terminal when prompted.
+
+To run each step manually:
 
 ```bash
-npm run smoke
+bun install
+bun run auth
+bun run models:sync
+SKIP_ACCOUNT_MENU=true bun start
 ```
 
-Если всё хорошо, API доступен здесь:
+The API is now available at:
 
 ```text
-http://localhost:3264/api
+http://127.0.0.1:3264/api
 ```
 
-## Авторизация Qwen Chat
-
-Добавить аккаунт:
+Verify the installation from another terminal:
 
 ```bash
-npm run auth
+curl http://127.0.0.1:3264/api/health
+bun run smoke
 ```
 
-Или сразу конкретное действие:
+## First Request
 
 ```bash
-npm run auth -- --add
-npm run auth -- --list
-npm run auth -- --relogin
-npm run auth -- --remove
-```
-
-При добавлении аккаунта откроется Chromium. Войдите в Qwen Chat, затем вернитесь в терминал — токен будет сохранён в `session/`.
-
-**Не коммитьте и не публикуйте секреты:**
-
-- `session/`
-- `session/tokens.json`
-- `session/accounts/**/token.txt`
-- `.env`
-- `Authorization.txt`
-- cookies / browser profile / реальные токены
-
-## Основные endpoints
-
-### Health
-
-```bash
-curl http://localhost:3264/api/health
-```
-
-Ответ содержит количество моделей, аккаунтов и watermark:
-
-```json
-{
-  "ok": true,
-  "service": "FreeQwenApi",
-  "watermark": "t.me/forgetmeai",
-  "baseUrl": "/api",
-  "models": 28
-}
-```
-
-### Список моделей
-
-```bash
-curl http://localhost:3264/api/models
-```
-
-Обновить список моделей из Qwen Chat metadata:
-
-```bash
-npm run models:sync
-```
-
-Подробный отчёт: [docs/QWEN_CHAT_MODELS.md](docs/QWEN_CHAT_MODELS.md)
-
-### Chat Completions
-
-```bash
-curl http://localhost:3264/api/chat/completions \
+curl http://127.0.0.1:3264/api/chat/completions \
   -H "Content-Type: application/json" \
   -d '{
     "model": "qwen3.7-max",
     "messages": [
-      {"role": "user", "content": "Ответь коротко: что такое FreeQwenApi?"}
+      {
+        "role": "user",
+        "content": "Explain what FreeQwenApi does in one sentence."
+      }
     ],
     "stream": false
   }'
 ```
 
-OpenAI SDK:
+### OpenAI JavaScript SDK
 
 ```js
-import OpenAI from 'openai';
+import OpenAI from "openai";
 
-const openai = new OpenAI({
-  baseURL: 'http://localhost:3264/api',
-  apiKey: 'dummy-key'
+const qwen = new OpenAI({
+  baseURL: "http://127.0.0.1:3264/api",
+  apiKey: "dummy-key",
 });
 
-const response = await openai.chat.completions.create({
-  model: 'qwen3.7-max',
-  messages: [{ role: 'user', content: 'Привет!' }]
+const response = await qwen.chat.completions.create({
+  model: "qwen3.7-max",
+  messages: [{ role: "user", content: "Hello from the OpenAI SDK." }],
 });
 
 console.log(response.choices[0].message.content);
 ```
 
-## Генерация изображений через Qwen Chat
+### Streaming
 
-По умолчанию `/api/images/generations` использует **Qwen Chat**, а не DashScope. То есть отдельный `DASHSCOPE_API_KEY` не нужен — нужен активный Qwen Chat аккаунт.
+```js
+const stream = await qwen.chat.completions.create({
+  model: "qwen3.7-plus",
+  messages: [{ role: "user", content: "Write a short Bun example." }],
+  stream: true,
+});
 
-```bash
-curl http://localhost:3264/api/images/generations \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Кинематографичный робот в неоновом Токио, стиль sci-fi poster",
-    "model": "qwen3-vl-plus",
-    "size": "16:9"
-  }'
-```
-
-Пример ответа:
-
-```json
-{
-  "created": 1770000000,
-  "watermark": "t.me/forgetmeai",
-  "provider": "qwen-chat",
-  "model": "qwen3-vl-plus",
-  "data": [
-    { "url": "https://cdn.qwenlm.ai/.../image.png", "revised_prompt": "..." }
-  ]
+for await (const chunk of stream) {
+  process.stdout.write(chunk.choices[0]?.delta?.content ?? "");
 }
 ```
 
-Поддерживаемые форматы `size` для Qwen Chat:
+More examples are available in [`examples/`](examples/README.md).
 
-- `16:9`
-- `9:16`
-- `1:1`
-- `4:3`
-- также можно передать OpenAI-style `1024x1024`, `1792x1024`, `1024x1792` — они будут преобразованы в aspect ratio.
+## pi Agent
 
-Старый DashScope-режим тоже оставлен:
-
-```json
-{
-  "provider": "dashscope",
-  "model": "qwen-image-plus",
-  "prompt": "..."
-}
-```
-
-Подробности: [IMAGE_VIDEO_GENERATION_GUIDE.md](IMAGE_VIDEO_GENERATION_GUIDE.md) и [docs/IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md)
-
-## Генерация видео через Qwen Chat
-
-Создать видео и дождаться результата на сервере:
+FreeQwenApi includes a ready-to-use custom provider for
+[pi](https://github.com/badlogic/pi-mono). It enables streaming and agent tool
+calls while disabling OpenAI fields unsupported by the browser-backed proxy.
 
 ```bash
-curl http://localhost:3264/api/videos/generations \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Камера медленно приближается к футуристическому городу ночью, cinematic, 5 seconds",
-    "model": "qwen3-vl-plus",
-    "size": "16:9",
-    "wait": true
-  }'
+mkdir -p ~/.pi/agent
+cp examples/pi-agent/models.json ~/.pi/agent/models.json
+
+export FREEQWEN_API_KEY=dummy-key
+pi --provider freeqwen --model qwen3-coder-plus
 ```
 
-Если не хотите держать HTTP-соединение открытым:
+Available presets:
 
-```bash
-curl http://localhost:3264/api/videos/generations \
-  -H "Content-Type: application/json" \
-  -d '{
-    "prompt": "Робот идёт под дождём в неоновом городе",
-    "size": "16:9",
-    "wait": false
-  }'
-```
+| Model | Recommended use |
+| --- | --- |
+| `qwen3-coder-plus` | Coding agent and tool-heavy tasks |
+| `qwen3.7-max` | General-purpose agent |
+| `qwen3.7-plus` | Faster general chat |
 
-Ответ вернёт `task_id`. Проверить статус:
-
-```bash
-curl http://localhost:3264/api/tasks/status/TASK_ID
-```
-
-Или подождать завершения прямо в status endpoint:
-
-```bash
-curl "http://localhost:3264/api/tasks/status/TASK_ID?wait=true"
-```
+See [`examples/pi-agent/README.md`](examples/pi-agent/README.md) for configuration
+details.
 
 ## Open WebUI
 
-Для локального Open WebUI:
+Add an OpenAI-compatible connection:
 
-```text
-Base URL: http://localhost:3264/api
-API Key: dummy-key
-Model: qwen3.7-max
-```
+| Setting | Value |
+| --- | --- |
+| Base URL | `http://127.0.0.1:3264/api` |
+| API key | `dummy-key` or your configured proxy key |
+| Model | `qwen3.7-max` |
 
-Если Open WebUI в Docker:
+When Open WebUI runs in Docker, use `http://host.docker.internal:3264/api`.
 
-```text
-Base URL: http://host.docker.internal:3264/api
-API Key: dummy-key
-```
+See [`docs/OPENWEBUI_SETUP.md`](docs/OPENWEBUI_SETUP.md) for the complete setup.
 
-Полная инструкция: [docs/OPENWEBUI_SETUP.md](docs/OPENWEBUI_SETUP.md)
+## Other Integrations
 
-## Hermes Agent / LiteLLM / Claude Code
-
-Hermes custom provider:
+### Hermes Agent
 
 ```yaml
 custom_providers:
   - name: qwen-free
-    base_url: http://localhost:3264/api
+    base_url: http://127.0.0.1:3264/api
     model: qwen3.7-max
     api_key: dummy-key
 ```
 
-Готовый пример: [examples/hermes/config-snippet.yaml](examples/hermes/config-snippet.yaml)
-
-Для Hermes Agent прокси поддерживает OpenAI-compatible agent loop:
-
-- `/api/chat/completions` и `/api/v1/chat/completions` принимают `tools` / legacy `functions`;
-- ответы с вызовами инструментов возвращаются как настоящие `message.tool_calls` или streaming `delta.tool_calls` с `finish_reason: "tool_calls"`;
-- tool-result продолжения Hermes (`role: "tool"`) не ломают контекст: прокси сворачивает OpenAI transcript в понятный Qwen Chat prompt и продолжает ответ после результата инструмента;
-- для Qwen Chat это адаптер поверх веб-чата, поэтому tool schemas эмулируются через системный prompt, но наружный контракт для Hermes остаётся OpenAI-compatible.
-
-LiteLLM bridge для Claude Code:
+### LiteLLM
 
 ```yaml
 model_list:
   - model_name: qwen3.7-max
     litellm_params:
       model: openai/qwen3.7-max
-      api_base: http://localhost:3264/api
+      api_base: http://127.0.0.1:3264/api
       api_key: dummy-key
 ```
 
-Готовый пример: [examples/litellm/qwen_litellm.yaml](examples/litellm/qwen_litellm.yaml)
+Ready-made configurations:
+
+- [`examples/hermes/config-snippet.yaml`](examples/hermes/config-snippet.yaml)
+- [`examples/litellm/qwen_litellm.yaml`](examples/litellm/qwen_litellm.yaml)
+
+## Models
+
+The default model list is stored in [`src/AvailableModels.txt`](src/AvailableModels.txt).
+Refresh it from Qwen Chat metadata with:
+
+```bash
+bun run models:sync
+```
+
+Common choices:
+
+| Use case | Model |
+| --- | --- |
+| General chat and agents | `qwen3.7-max` |
+| Fast general chat | `qwen3.7-plus` |
+| Coding | `qwen3-coder-plus` |
+| Vision, image, and video workflows | `qwen3-vl-plus` |
+
+Inspect the models exposed by your running proxy:
+
+```bash
+curl http://127.0.0.1:3264/api/models
+```
+
+## Image Generation
+
+By default, image requests use Qwen Chat and do not require a DashScope API key:
+
+```bash
+curl http://127.0.0.1:3264/api/images/generations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3-vl-plus",
+    "prompt": "A cinematic robot walking through neon Warsaw",
+    "size": "16:9"
+  }'
+```
+
+Supported aspect ratios include `16:9`, `9:16`, `1:1`, and `4:3`. OpenAI-style
+sizes such as `1024x1024` are converted automatically.
+
+Set `"provider": "dashscope"` and configure `DASHSCOPE_API_KEY` to use the
+legacy DashScope image provider.
+
+## Video Generation
+
+Wait for the result in the initial request:
+
+```bash
+curl http://127.0.0.1:3264/api/videos/generations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "qwen3-vl-plus",
+    "prompt": "A slow camera move through a futuristic city at night",
+    "size": "16:9",
+    "wait": true
+  }'
+```
+
+For client-side polling, set `"wait": false` and query:
+
+```bash
+curl "http://127.0.0.1:3264/api/tasks/status/TASK_ID?wait=true"
+```
+
+See [`IMAGE_VIDEO_GENERATION_GUIDE.md`](IMAGE_VIDEO_GENERATION_GUIDE.md) for
+the full media-generation guide.
+
+## API Reference
+
+All routes are mounted under `/api`.
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/health` | Lightweight service health |
+| `GET` | `/status` | Browser authentication and account status |
+| `GET` | `/models` | OpenAI-compatible model list |
+| `POST` | `/chat` | Native simplified chat request |
+| `POST` | `/chat/completions` | OpenAI-compatible Chat Completions |
+| `POST` | `/v1/chat/completions` | Alternate OpenAI-compatible route |
+| `POST` | `/chats` | Create a Qwen chat |
+| `GET` | `/chats/:chatId/history` | Read locally stored chat history |
+| `POST` | `/chats/:chatId/history` | Update locally stored chat history |
+| `POST` | `/files/upload` | Upload an attachment |
+| `POST` | `/files/getstsToken` | Request upload credentials |
+| `POST` | `/images/generations` | Generate an image |
+| `GET` | `/images/models` | List image models |
+| `GET` | `/images/status` | Check image provider status |
+| `POST` | `/videos/generations` | Generate a video |
+| `GET` | `/videos/models` | List video models |
+| `GET` | `/videos/status` | Check video provider status |
+| `GET` | `/tasks/status/:taskId` | Poll an asynchronous media task |
+
+### Tool Calls
+
+`/chat/completions` accepts OpenAI-style `tools`, legacy `functions`, and tool
+result messages. Qwen Chat does not expose native OpenAI tool schemas, so
+FreeQwenApi translates tool definitions into a controlled prompt and converts
+the model output back into `message.tool_calls`.
+
+## Authentication and Accounts
+
+Manage Qwen Chat accounts with:
+
+```bash
+bun run auth                 # interactive menu
+bun run auth -- --add
+bun run auth -- --list
+bun run auth -- --relogin
+bun run auth -- --remove
+```
+
+Multiple active accounts are selected in round-robin order. Rate-limited
+accounts are temporarily skipped, while invalid accounts are marked for
+reauthentication.
+
+To protect the local proxy itself, add allowed bearer tokens to
+`src/Authorization.txt`, one token per line. An empty or missing file disables
+proxy-level authentication.
+
+## Configuration
+
+Create a local `.env` or export environment variables before starting the proxy.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `HOST` | `0.0.0.0` | HTTP bind address |
+| `PORT` | `3264` | HTTP port |
+| `DEFAULT_MODEL` | `qwen-max-latest` | Default chat model |
+| `SKIP_ACCOUNT_MENU` | `false` | Start without the interactive account menu |
+| `NON_INTERACTIVE` | `false` | Alias for non-interactive startup |
+| `CHROME_PATH` | auto-detected | Chromium or Chrome executable |
+| `SESSION_DIR` | `session` | Local authentication storage |
+| `LOG_LEVEL` | `info` | Winston log level |
+| `PAGE_POOL_SIZE` | `3` | Maximum reusable browser pages |
+| `MAX_FILE_SIZE` | `10485760` | Upload limit in bytes |
+| `PAGE_TIMEOUT` | `120000` | Browser page timeout in milliseconds |
+| `MAX_RETRY_COUNT` | `3` | Qwen request retry limit |
+| `STREAMING_CHUNK_DELAY` | `20` | Streaming chunk delay in milliseconds |
+| `ALLOW_UNSCOPED_SESSION_CHAT_RESTORE` | `false` | Enable legacy IP/User-Agent chat restore |
+| `DASHSCOPE_API_KEY` | unset | Optional legacy image-generation provider |
+
+Advanced endpoint, timeout, logging, and polling options are defined in
+[`src/config.js`](src/config.js).
 
 ## Docker
 
-Сначала добавьте аккаунт локально, потому что внутри контейнера нет GUI для входа:
+Authenticate locally first because the production container has no interactive GUI:
 
 ```bash
-npm run auth
-```
-
-Потом:
-
-```bash
+bun run auth
 docker compose up --build -d
 ```
 
-В `docker-compose.yml` важно пробросить `session/`:
+The Compose configuration persists:
 
-```yaml
-services:
-  qwen-proxy:
-    build: .
-    environment:
-      - SKIP_ACCOUNT_MENU=true
-      - PORT=3264
-    ports:
-      - "3264:3264"
-    volumes:
-      - ./session:/app/session
-      - ./logs:/app/logs
-      - ./uploads:/app/uploads
-```
+- `./session` for Qwen authentication
+- `./logs` for application logs
+- `./uploads` for temporary uploads
 
-## Рекомендуемые модели
+### Published Image
 
-- **Обычный чат / агенты**: `qwen3.7-max`
-- **Быстрее и легче**: `qwen3.7-plus`
-- **Кодинг**: `qwen3-coder-plus`
-- **Изображения/видео через Qwen Chat**: `qwen3-vl-plus`
-- **Open WebUI default**: `qwen3.7-max`
-
-## Полезные команды
+Tagged releases are published by GitHub Actions to GitHub Container Registry:
 
 ```bash
-npm run auth                  # управление аккаунтами
-npm run models:sync           # обновить список моделей
-npm run smoke                 # быстрая проверка API
-SKIP_ACCOUNT_MENU=true npm start
+docker pull ghcr.io/kravchenski/freeqwenapi:latest
 ```
 
-Проверки руками:
+Run it with an existing session directory:
 
 ```bash
-curl http://localhost:3264/api/health
-curl http://localhost:3264/api/status
-curl http://localhost:3264/api/models
-curl http://localhost:3264/api/images/status
-curl http://localhost:3264/api/videos/status
+docker run --rm -p 3264:3264 \
+  -e SKIP_ACCOUNT_MENU=true \
+  -v "$PWD/session:/app/session" \
+  ghcr.io/kravchenski/freeqwenapi:latest
 ```
 
-## Документация
+## Development
 
-- [docs/FORK_DEMO_QUICKSTART.md](docs/FORK_DEMO_QUICKSTART.md) — быстрый сценарий для демо/видео.
-- [docs/QWEN_CHAT_MODELS.md](docs/QWEN_CHAT_MODELS.md) — отчёт синхронизации моделей Qwen Chat.
-- [IMAGE_VIDEO_GENERATION_GUIDE.md](IMAGE_VIDEO_GENERATION_GUIDE.md) — генерация изображений и видео через `chatType`.
-- [docs/IMAGE_GENERATION.md](docs/IMAGE_GENERATION.md) — DashScope/Qwen Image endpoints.
-- [docs/OPENWEBUI_SETUP.md](docs/OPENWEBUI_SETUP.md) — подключение Open WebUI.
-- [examples/hermes/config-snippet.yaml](examples/hermes/config-snippet.yaml) — Hermes Agent provider.
-- [examples/litellm/qwen_litellm.yaml](examples/litellm/qwen_litellm.yaml) — LiteLLM bridge.
+```bash
+bun install
+bun run dev
+```
 
-## Ограничения
+Project checks:
 
-- Это неофициальный browser-based proxy, Qwen может менять внутренний API.
-- Аккаунты Qwen Chat могут ловить лимиты; используйте несколько аккаунтов для round-robin.
-- Токены истекают — используйте `npm run auth -- --relogin`.
-- Генерация фото/видео зависит от доступности функций Qwen Chat на конкретном аккаунте.
-- URL сгенерированных медиа могут быть временными.
-- Для production используйте осторожно: это инструмент для экспериментов, демо и локальных workflow.
+```bash
+bun run test
+bun run check
+bun run ci
+```
 
-## От ForgetMeAI
+Useful commands:
 
-Если fork помог — подпишитесь: [t.me/forgetmeai](https://t.me/forgetmeai)
+| Command | Description |
+| --- | --- |
+| `bun start` | Start the proxy |
+| `bun run start:full` | Install, validate, authenticate, sync models, and start |
+| `bun run dev` | Start with Bun watch mode |
+| `bun run auth` | Manage Qwen accounts |
+| `bun run models:sync` | Refresh Qwen model metadata |
+| `bun run smoke` | Test a running authenticated proxy |
+| `bun run test` | Run offline Bun tests |
+| `bun run check` | Validate that the server bundles under Bun |
+| `bun run ci` | Run all offline CI checks |
 
-Там практичные AI-инструменты, локальные агенты, open-source находки и честные тесты без корпоративной лапши.
+The smoke test is intentionally not part of CI because it requires a real Qwen
+account and session.
+
+The full startup script also supports:
+
+```bash
+./start.sh --help
+./start.sh --check-only
+./start.sh --skip-checks --skip-sync
+./start.sh --auth
+```
+
+## CI/CD
+
+GitHub Actions workflows live in [`.github/workflows/`](.github/workflows/):
+
+- **CI** runs frozen dependency installation, Bun tests, Bun build validation,
+  and a Docker build for pull requests and branch pushes.
+- **Container release** publishes multi-platform images to GHCR for version tags
+  such as `v1.2.3`, and can also be started manually.
+
+Create a release image:
+
+```bash
+git tag v1.1.0
+git push origin v1.1.0
+```
+
+## Security
+
+Never commit or publish:
+
+- `session/` or `session/tokens.json`
+- `session/accounts/**/token.txt`
+- `.env` files
+- `Authorization.txt`
+- cookies, browser profiles, or real bearer tokens
+
+These paths are covered by [`.gitignore`](.gitignore), but always inspect staged
+changes before pushing:
+
+```bash
+git diff --cached
+```
+
+If a token is exposed, revoke or refresh it immediately. Please report
+security-sensitive issues privately instead of opening a public issue.
+
+## Troubleshooting
+
+### No valid accounts found
+
+Run `bun run auth -- --list`, then add or relogin an account.
+
+### Chromium does not start
+
+Install Chromium and set its executable explicitly:
+
+```bash
+CHROME_PATH=/usr/bin/chromium bun run auth
+```
+
+### The proxy starts but requests fail
+
+Check:
+
+```bash
+curl http://127.0.0.1:3264/api/status
+curl http://127.0.0.1:3264/api/models
+```
+
+Then inspect `logs/` and relogin if the Qwen session expired.
+
+### A model is missing
+
+Refresh metadata with `bun run models:sync`, or add the model to
+`src/AvailableModels.txt`.
+
+## Documentation
+
+- [`docs/FORK_DEMO_QUICKSTART.md`](docs/FORK_DEMO_QUICKSTART.md) - demo-oriented quick start
+- [`docs/OPENWEBUI_SETUP.md`](docs/OPENWEBUI_SETUP.md) - Open WebUI setup
+- [`docs/QWEN_CHAT_MODELS.md`](docs/QWEN_CHAT_MODELS.md) - model synchronization notes
+- [`docs/IMAGE_GENERATION.md`](docs/IMAGE_GENERATION.md) - image-generation details
+- [`IMAGE_VIDEO_GENERATION_GUIDE.md`](IMAGE_VIDEO_GENERATION_GUIDE.md) - image and video guide
+- [`examples/README.md`](examples/README.md) - JavaScript and Python examples
+
+## Disclaimer
+
+FreeQwenApi is an independent community project. It is not affiliated with,
+endorsed by, or supported by Alibaba Cloud or the Qwen team. You are responsible
+for complying with Qwen's terms, applicable laws, and the policies of any
+connected service.
+
+## Community
+
+Updates and practical AI tooling from the fork maintainers:
+[t.me/forgetmeai](https://t.me/forgetmeai).

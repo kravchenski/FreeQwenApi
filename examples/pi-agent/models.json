@@ -1,0 +1,63 @@
+{
+  "providers": {
+    "freeqwen": {
+      "baseUrl": "http://127.0.0.1:3264/api",
+      "apiKey": "$FREEQWEN_API_KEY",
+      "authHeader": true,
+      "api": "openai-completions",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false,
+        "supportsUsageInStreaming": false,
+        "supportsStore": false,
+        "supportsStrictMode": false,
+        "maxTokensField": "max_tokens",
+        "requiresToolResultName": true
+      },
+      "models": [
+        {
+          "id": "qwen3.7-max",
+          "name": "FreeQwen qwen3.7-max",
+          "reasoning": false,
+          "input": ["text", "image"],
+          "contextWindow": 131072,
+          "maxTokens": 16384,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "qwen3.7-plus",
+          "name": "FreeQwen qwen3.7-plus",
+          "reasoning": false,
+          "input": ["text", "image"],
+          "contextWindow": 131072,
+          "maxTokens": 16384,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "qwen3-coder-plus",
+          "name": "FreeQwen qwen3-coder-plus",
+          "reasoning": false,
+          "input": ["text"],
+          "contextWindow": 131072,
+          "maxTokens": 16384,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
+    }
+  }
+}

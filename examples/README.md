@@ -8,18 +8,18 @@
 
 ```bash
 # В корневой директории проекта
-npm install
+bun install
 ```
 
 Перед запуском примеров убедитесь, что сервер FreeQwenApi запущен и доступен по адресу `http://localhost:3264`.
 
 ```bash
 # Запуск сервера
-npm start
+bun start
 
 # В отдельном терминале запустите примеры
-npm run example:simple
-npm run example:stream
+bun run example:simple
+bun run example:stream
 # и т.д.
 ```
 
@@ -28,7 +28,7 @@ npm run example:stream
 ### 1. Простой запрос (не потоковый)
 
 ```bash
-npm run example:simple
+bun run example:simple
 ```
 
 Демонстрирует отправку простого запроса к Qwen AI с использованием OpenAI SDK.
@@ -36,7 +36,7 @@ npm run example:simple
 ### 2. Потоковый запрос
 
 ```bash
-npm run example:stream
+bun run example:stream
 ```
 
 Показывает, как получать ответ в потоковом режиме, где токены приходят по мере их генерации.
@@ -44,7 +44,7 @@ npm run example:stream
 ### 3. Запрос с системным сообщением
 
 ```bash
-npm run example:system
+bun run example:system
 ```
 
 Пример использования системного сообщения для задания роли и инструкций модели.
@@ -52,7 +52,7 @@ npm run example:system
 ### 4. Анализ изображения
 
 ```bash
-npm run example:image
+bun run example:image
 ```
 
 Демонстрация отправки изображения для анализа моделью (требуется заменить URL изображения в примере).
@@ -60,7 +60,7 @@ npm run example:image
 ### 5. Диалог с несколькими сообщениями
 
 ```bash
-npm run example:conversation
+bun run example:conversation
 ```
 
 Пример поддержания диалога из нескольких сообщений с сохранением контекста.
@@ -68,7 +68,7 @@ npm run example:conversation
 ### 6. Совместимость с OpenAI API
 
 ```bash
-npm run example:compatibility
+bun run example:compatibility
 ```
 
 Демонстрация полной совместимости с форматом API OpenAI.
@@ -78,7 +78,7 @@ npm run example:compatibility
 ### 1. Запрос с использованием fetch
 
 ```bash
-npm run example:direct
+bun run example:direct
 ```
 
 Пример отправки прямого запроса к API без использования SDK, с использованием нативного fetch.
@@ -86,7 +86,7 @@ npm run example:direct
 ### 2. Запрос с использованием axios
 
 ```bash
-npm run example:axios
+bun run example:axios
 ```
 
 Пример использования библиотеки axios для отправки запросов к API.
@@ -96,7 +96,7 @@ npm run example:axios
 ### Тест всех типов генерации
 
 ```bash
-npm run test:features
+bun run test:features
 ```
 
 Тестирует все три режима: текстовый чат (t2t), генерацию изображений (t2i) и генерацию видео (t2v).
@@ -104,7 +104,7 @@ npm run test:features
 ### Сравнение режимов polling для видео
 
 ```bash
-npm run test:video-polling
+bun run test:video-polling
 ```
 
 Сравнивает server-side polling (сервер сам ждёт) и client-side polling (клиент поллит вручную).

@@ -2,15 +2,28 @@
 node_modules/
 package-lock.json
 yarn.lock
+.bun-install/
+.bun-tmp/
+.build-check/
 
 # Данные сессии и кэш
 session/
+session/tokens.json
+session/accounts/**/token.txt
+cookies/
+cookies.json
+*.cookies.json
+browser-profile/
+browser_profile/
+browser-data/
+user-data-dir/
 .cache/
 
 
 # Служебные файлы
 .DS_Store
 .env
+.env.*
 .env.local
 .env.development.local
 .env.test.local
@@ -38,4 +51,5 @@ venv/
 *.swp
 *.swo 
 
-src/Authorization.txt
+Authorization.txt
+**/Authorization.txt
