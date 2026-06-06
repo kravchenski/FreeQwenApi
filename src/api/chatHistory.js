@@ -33,7 +33,14 @@ export function createChat(chatName) {
     return chatId;
 }
 
+export function isValidChatId(chatId) {
+    return typeof chatId === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(chatId);
+}
+
 function getHistoryFilePath(chatId) {
+    if (!isValidChatId(chatId)) {
+        throw new Error('Некорректный идентификатор чата');
+    }
     return path.join(HISTORY_DIR, `${chatId}.json`);
 }
 
@@ -71,7 +78,6 @@ export function loadHistory(chatId) {
                 };
             }
 
-            // Поддержка обратной совместимости со старым форматом
             if (Array.isArray(data)) {
                 logDebug(`Чат ${chatId} использует устаревший формат, выполняется конвертация`);
                 return {
@@ -83,7 +89,6 @@ export function loadHistory(chatId) {
                 };
             }
 
-            // Проверяем наличие обязательных полей
             if (!data.messages) {
                 logInfo(`Чат ${chatId} не содержит сообщений, инициализируем пустой массив`);
                 data.messages = [];
@@ -109,7 +114,6 @@ export function loadHistory(chatId) {
         logError(`Ошибка при загрузке истории чата ${chatId}`, error);
     }
 
-    // Если не удалось загрузить, создаем новые данные
     logInfo(`Создаем новую историю для чата ${chatId}`);
     return {
         id: chatId,
@@ -153,10 +157,8 @@ export function addUserMessage(chatId, content) {
     const timestamp = Math.floor(Date.now() / 1000);
     const messageId = crypto.randomUUID();
 
-    // Определяем тип содержимого и его длину для логирования
     let contentDesc;
     if (Array.isArray(content)) {
-        // Составное сообщение (текст + изображения)
         const textParts = content.filter(item => item.type === 'text');
         const imageParts = content.filter(item => item.type === 'image');
         const fileParts = content.filter(item => item.type === 'file');
@@ -282,7 +284,6 @@ export function deleteChatsAutomatically(criteria = {}) {
 
         let chatsToDelete = [...chats];
 
-        // Фильтрация по возрасту (в миллисекундах)
         if (olderThan) {
             const cutoffTime = Date.now() - olderThan;
             const oldChatsCount = chatsToDelete.filter(chat => chat.created < cutoffTime).length;
@@ -318,7 +319,6 @@ export function deleteChatsAutomatically(criteria = {}) {
             });
         }
 
-        // Удаление выбранных чатов
         const deletedChats = [];
         logInfo(`Найдено ${chatsToDelete.length} чатов для удаления`);
 
@@ -341,4 +341,4 @@ export function deleteChatsAutomatically(criteria = {}) {
             error: error.message
         };
     }
-} 
+}
