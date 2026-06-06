@@ -6,6 +6,7 @@ import {
     hasObviouslyBrokenEditArguments,
     recoverSimpleToolCalls,
     recoverBrokenBashToolCall,
+    recoverXmlStyleToolCall,
     parseToolCallJson,
     repairEditArguments,
     repairToolCallJsonKeys,
@@ -139,5 +140,13 @@ describe('tool call JSON repair', () => {
 
         expect(JSON.parse(extractFirstToolCallObject(content)).tool_calls).toHaveLength(1);
         expect(parseToolCallJson(content)?.[0].function.name).toBe('ls');
+    });
+
+    test('converts simulated XML tools into real tool calls', () => {
+        expect(recoverXmlStyleToolCall('Сначала проверю.\n<bash>\nread main.py --limit 300\n</bash>')).toEqual({
+            name: 'read',
+            arguments: { path: 'main.py' }
+        });
+        expect(parseToolCallJson('<bash>\nfind . -name "*.ts"\n</bash>')?.[0].function.name).toBe('bash');
     });
 });

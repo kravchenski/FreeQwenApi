@@ -478,6 +478,8 @@ GENERAL TOOL RULES:
 - For codebase tasks such as implement, fix, refactor, review, test, or inspect, you MUST call read/ls/find/grep/bash or another suitable workspace tool before making claims or giving a final answer.
 - Never claim that a file exists, was deleted, changed, tested, or listed unless that fact came from a tool result in the current conversation.
 - Do not print a shell command as a suggestion when you can call the corresponding tool yourself.
+- Never simulate tools with XML, markdown, or prose such as <bash>...</bash>, <read>...</read>, or fenced shell blocks. Emit a real JSON tool call instead.
+- When the user asks you to implement, fix, or refactor, continue through inspection, edits, and verification. Do not stop to ask which approach they prefer unless required information cannot be discovered.
 - When an action, lookup, file read/write, command, web search, calculation, or verification is needed, CALL A TOOL instead of describing the action.
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
 - Never invent tool results. After tool results appear in the conversation, use them to continue.
@@ -630,6 +632,19 @@ export function recoverBrokenBashToolCall(text) {
     return { name: match[1], arguments: { command } };
 }
 
+export function recoverXmlStyleToolCall(text) {
+    const block = text.match(/<(bash|terminal|read|ls|find|grep)>\s*([\s\S]*?)\s*<\/\1>/i);
+    if (!block) return null;
+    const name = block[1].toLowerCase();
+    const body = block[2].trim();
+    if (name === 'bash' || name === 'terminal') {
+        const read = body.match(/^read\s+(.+?)(?:\s+--limit\s+\d+)?$/);
+        if (read) return { name: 'read', arguments: { path: read[1].trim() } };
+        return { name: 'bash', arguments: { command: body } };
+    }
+    return { name, arguments: { path: body } };
+}
+
 export function conversationalShellText(name, rawArgs) {
     if (name !== 'bash' && name !== 'terminal') return false;
     let args;
@@ -713,6 +728,15 @@ export function parseToolCallJson(content) {
             id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
             type: 'function',
             function: { name: recoveredBash.name, arguments: JSON.stringify(recoveredBash.arguments) },
+            index: 0
+        }];
+    }
+    const recoveredXml = recoverXmlStyleToolCall(content);
+    if (recoveredXml) {
+        return [{
+            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+            type: 'function',
+            function: { name: recoveredXml.name, arguments: JSON.stringify(recoveredXml.arguments) },
             index: 0
         }];
     }
