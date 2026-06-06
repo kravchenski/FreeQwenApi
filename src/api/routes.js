@@ -427,7 +427,7 @@ function compactJsonSchema(schema, depth = 0) {
     return out;
 }
 
-function toolsToPrompt(tools) {
+export function toolsToPrompt(tools) {
     if (!Array.isArray(tools) || tools.length === 0) return '';
 
     const priorityNames = new Set([
@@ -473,6 +473,13 @@ GENERAL TOOL RULES:
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
 - Never invent tool results. After tool results appear in the conversation, use them to continue.
 - Use exact tool names from the list above. Do not prefix names with namespaces.
+- For source-code changes, prefer patch/apply_patch. For a complete file replacement, use write/write_file with the final content.
+- For small exact replacements, edit is allowed. Keep oldText/newText source syntax valid and preserve all quotes, backticks, asterisks, and escapes.
+- Keep every JSON property name and path as one uninterrupted string. Never insert whitespace or line breaks inside names such as "content", "path", or "oldText".
+- JSON string values must escape embedded newlines as \n. The outer tool-call JSON itself must remain valid and minified.
+- When write content contains JSON or source code with double quotes, escape every inner double quote as \" so the outer tool-call JSON stays valid.
+- Preserve source code exactly inside tool arguments. In particular, CSS comments must use /* comment */ with both asterisk characters.
+- Preserve JavaScript and TypeScript delimiters exactly. Template literals containing \${...} require surrounding backticks, and selector strings passed to querySelector/querySelectorAll require quotes or backticks.
 
 TOOL CALL OUTPUT FORMAT — respond ONLY with minified JSON, no markdown, no prose:
 {"tool_calls":[{"name":"tool_name","arguments":{}}]}
@@ -487,6 +494,103 @@ ${JSON.stringify(schemas.map(({priority, ...schema}) => schema), null, 2)}
 
 If no tool is needed and no skill rule applies, answer normally.`;
 }
+
+const TOOL_CALL_JSON_KEYS = [
+    'tool_calls', 'function_call', 'tool_call', 'name', 'tool', 'function',
+    'arguments', 'args', 'input', 'path', 'content', 'edits', 'oldText', 'newText',
+    'command'
+];
+
+export function repairToolCallJsonKeys(text) {
+    let repaired = text;
+    for (const key of TOOL_CALL_JSON_KEYS) {
+        const splitKey = key.split('').join('\\s*');
+        repaired = repaired.replace(new RegExp(`"${splitKey}"\\s*:`, 'g'), `"${key}":`);
+    }
+    return repaired;
+}
+
+export function hasObviouslyBrokenEditArguments(rawArgs) {
+    let args;
+    try {
+        args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
+    } catch {
+        return true;
+    }
+    if (!args || !Array.isArray(args.edits)) return false;
+
+    return args.edits.some(edit => {
+        const source = edit?.newText;
+        if (typeof source !== 'string') return false;
+        const hasInterpolationWithoutBackticks = source.includes('${') && !source.includes('`');
+        const hasUnquotedSelector = /\bquerySelector(?:All)?\(\s*[.#][^"'`)]/.test(source);
+        return hasInterpolationWithoutBackticks || hasUnquotedSelector;
+    });
+}
+
+export function repairEditArguments(rawArgs) {
+    let args;
+    try {
+        args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : structuredClone(rawArgs);
+    } catch {
+        return rawArgs;
+    }
+    if (!args || !Array.isArray(args.edits)) return args;
+
+    for (const edit of args.edits) {
+        for (const field of ['oldText', 'newText']) {
+            if (typeof edit?.[field] !== 'string') continue;
+            let source = edit[field];
+            source = source.replace(
+                /\bquerySelector(All)?\(\s*([.#][^)\n]*\$\{[^)\n]*\}[^)\n]*)\)/g,
+                (_match, all = '', selector) => `querySelector${all}(\`${selector}\`)`
+            );
+            source = source.replace(
+                /^(\s*[\w.[\]]+\.textContent\s*=\s*)([^;\n]*\$\{[^;\n]*\}[^;\n]*);/gm,
+                (_match, prefix, value) => `${prefix}\`${value.trim()}\`;`
+            );
+            edit[field] = source;
+        }
+    }
+    return args;
+}
+
+export function recoverSimpleToolCalls(text) {
+    const normalized = repairToolCallJsonKeys(text);
+    const starts = [...normalized.matchAll(/\{\s*"name"\s*:\s*"(write|read)"\s*,\s*"arguments"\s*:\s*\{/g)];
+    if (starts.length === 0) return null;
+
+    const calls = [];
+    for (let index = 0; index < starts.length; index++) {
+        const name = starts[index][1];
+        const start = starts[index].index;
+        const end = index + 1 < starts.length ? starts[index + 1].index : normalized.length;
+        const chunk = normalized.slice(start, end);
+        const pathMatch = chunk.match(/"path"\s*:\s*"([^"]+)"/);
+        if (!pathMatch) return null;
+        const path = pathMatch[1].replace(/\s+/g, match => /[\r\n]/.test(match) ? '' : match);
+
+        if (name === 'read') {
+            calls.push({ name, arguments: { path } });
+            continue;
+        }
+
+        const contentStart = chunk.search(/"content"\s*:\s*"/);
+        if (contentStart < 0) return null;
+        const afterOpeningQuote = chunk.indexOf('"', contentStart + chunk.slice(contentStart).indexOf(':') + 1) + 1;
+        const contentEnd = chunk.lastIndexOf('"}');
+        if (afterOpeningQuote <= 0 || contentEnd < afterOpeningQuote) return null;
+        calls.push({
+            name,
+            arguments: {
+                path,
+                content: chunk.slice(afterOpeningQuote, contentEnd).replace(/\\n/g, '\n')
+            }
+        });
+    }
+    return calls;
+}
+
 function parseToolCallJson(content) {
     if (typeof content !== 'string') return null;
     let text = content.trim();
@@ -497,7 +601,7 @@ function parseToolCallJson(content) {
     if (first > 0 || last !== text.length - 1) {
         if (first >= 0 && last > first) text = text.slice(first, last + 1);
     }
-    const parseAttempts = [text];
+    const parseAttempts = [text, repairToolCallJsonKeys(text)];
     if (/^\s*\{\s*"tool_calls"\s*:\s*\[\s*\{/.test(text) && /\}\]\}\s*$/.test(text)) {
         parseAttempts.push(text.replace(/\}\]\}\s*$/, '}}]}'));
     }
@@ -517,10 +621,11 @@ function parseToolCallJson(content) {
                 calls = [parsed];
             }
             if (!calls || calls.length === 0) continue;
-            return calls.map((call, index) => {
+            const mappedCalls = calls.map((call, index) => {
                 const name = call.name || call.tool || call.function?.name;
                 const rawArgs = call.arguments ?? call.args ?? call.input ?? call.function?.arguments ?? {};
-                const args = typeof rawArgs === 'string' ? rawArgs : JSON.stringify(rawArgs || {});
+                const normalizedArgs = name === 'edit' ? repairEditArguments(rawArgs) : rawArgs;
+                const args = typeof normalizedArgs === 'string' ? normalizedArgs : JSON.stringify(normalizedArgs || {});
                 if (!name) return null;
                 return {
                     id: call.id || `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
@@ -529,8 +634,19 @@ function parseToolCallJson(content) {
                     index
                 };
             }).filter(Boolean);
+            if (mappedCalls.length !== calls.length) continue;
+            return mappedCalls;
         } catch {
         }
+    }
+    const recovered = recoverSimpleToolCalls(text);
+    if (recovered) {
+        return recovered.map((call, index) => ({
+            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+            type: 'function',
+            function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+            index
+        }));
     }
     return null;
 }
