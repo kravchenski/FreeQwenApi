@@ -9,7 +9,14 @@ import { addAccountInteractive } from './src/utils/accountSetup.js';
 import { logHttpRequest, logInfo, logError, logWarn } from './src/logger/index.js';
 import { prompt } from './src/utils/prompt.js';
 import { FORGETMEAI_WATERMARK } from './src/utils/branding.js';
-import { PORT, HOST } from './src/config.js';
+import { PORT, HOST, REQUEST_BODY_LIMIT } from './src/config.js';
+import {
+    apiKeyAuth,
+    corsMiddleware,
+    normalizeApiVersion,
+    rateLimitMiddleware,
+    securityHeaders
+} from './src/middleware/security.js';
 
 const app = express();
 
@@ -43,11 +50,17 @@ function ensureNonInteractiveTokens() {
 }
 
 app.use(logHttpRequest);
-app.use(bodyParser.json({ limit: '150mb' }));
-app.use(bodyParser.urlencoded({ limit: '150mb', extended: true }));
+app.use(securityHeaders);
+app.use(corsMiddleware);
+app.use(bodyParser.json({ limit: REQUEST_BODY_LIMIT }));
+app.use(bodyParser.urlencoded({ limit: REQUEST_BODY_LIMIT, extended: true }));
 
 app.use((err, req, res, next) => {
     const isJsonSyntaxError = err instanceof SyntaxError && err.status === 400 && Object.prototype.hasOwnProperty.call(err, 'body');
+
+    if (err?.type === 'entity.too.large') {
+        return res.status(413).json({ error: 'Тело запроса превышает допустимый размер' });
+    }
 
     if (isJsonSyntaxError) {
         logWarn(`Некорректный JSON в запросе: ${err.message}`);
@@ -60,15 +73,7 @@ app.use((err, req, res, next) => {
     return next(err);
 });
 
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    if (req.method === 'OPTIONS') return res.sendStatus(200);
-    next();
-});
-
-app.use('/api', apiRoutes);
+app.use('/api', rateLimitMiddleware, apiKeyAuth, normalizeApiVersion, apiRoutes);
 
 app.use((req, res) => {
     logWarn(`404 Not Found: ${req.method} ${req.originalUrl}`);
@@ -97,12 +102,12 @@ async function handleShutdown() {
 
 async function startServer() {
     console.log(`
-███████ ██████  ███████ ███████  ██████  ██     ██ ███████ ███    ██  █████  ██████  ██ 
-██      ██   ██ ██      ██      ██    ██ ██     ██ ██      ████   ██ ██   ██ ██   ██ ██ 
-█████   ██████  █████   █████   ██    ██ ██  █  ██ █████   ██ ██  ██ ███████ ██████  ██ 
-██      ██   ██ ██      ██      ██ ▄▄ ██ ██ ███ ██ ██      ██  ██ ██ ██   ██ ██      ██ 
-██      ██   ██ ███████ ███████  ██████   ███ ███  ███████ ██   ████ ██   ██ ██      ██ 
-                                    ▀▀                                                    
+███████ ██████  ███████ ███████  ██████  ██     ██ ███████ ███    ██  █████  ██████  ██
+██      ██   ██ ██      ██      ██    ██ ██     ██ ██      ████   ██ ██   ██ ██   ██ ██
+█████   ██████  █████   █████   ██    ██ ██  █  ██ █████   ██ ██  ██ ███████ ██████  ██
+██      ██   ██ ██      ██      ██ ▄▄ ██ ██ ███ ██ ██      ██  ██ ██ ██   ██ ██      ██
+██      ██   ██ ███████ ███████  ██████   ███ ███  ███████ ██   ████ ██   ██ ██      ██
+                                    ▀▀
    API-прокси для Qwen
    ${FORGETMEAI_WATERMARK}
 `);

@@ -1,5 +1,5 @@
 import express from 'express';
-import { sendMessage, getAllModels, getApiKeys, createChatV2, pollQwenTaskStatus, extractMediaUrl, pagePool, extractAuthToken } from './chat.js';
+import { sendMessage, getAllModels, createChatV2, pollQwenTaskStatus, extractMediaUrl, pagePool, extractAuthToken } from './chat.js';
 import { getAuthenticationStatus, getBrowserContext } from '../browser/browser.js';
 import { checkAuthentication } from '../browser/auth.js';
 import { logInfo, logError, logDebug } from '../logger/index.js';
@@ -15,39 +15,33 @@ import crypto from 'crypto';
 import { listTokens, markInvalid, markRateLimited, markValid } from './tokenManager.js';
 import { FORGETMEAI_WATERMARK } from '../utils/branding.js';
 
-// Функция для генерирования детерминированного chatId на основе истории
 function generateChatIdFromHistory(messages) {
     if (!Array.isArray(messages) || messages.length === 0) {
         return null;
     }
-    
-    // Фильтруем служебные сообщения Open WebUI
-    // Игнорируем сообщения, которые начинаются с "### Task:" или "History:"
+
     const realMessages = messages.filter(m => {
         if (m.role !== 'user') return true;
         const content = typeof m.content === 'string' ? m.content : '';
         return !content.startsWith('### Task:') && !content.startsWith('History:');
     });
-    
-    // Если остались только служебные сообщения, используем исходные
+
     const messagesToUse = realMessages.length > 0 ? realMessages : messages;
-    
-    // Используем хеш первого реального сообщения пользователя для создания стабильного ID
+
     const userMessages = messagesToUse
         .filter(m => m.role === 'user')
-        .slice(0, 1) // Берём первое сообщение пользователя
+        .slice(0, 1)
         .map(m => typeof m.content === 'string' ? m.content : JSON.stringify(m.content))
         .join('||');
-    
+
     if (!userMessages) return null;
-    
-    // Создаём хеш для детерминированного ID
+
     const hash = crypto
         .createHash('sha256')
         .update(userMessages)
         .digest('hex')
         .substring(0, 16);
-    
+
     return `chat_${hash}`;
 }
 
@@ -147,7 +141,6 @@ function shouldPersistSessionContext(scope = null) {
     return Boolean(normalizedScope) || ALLOW_UNSCOPED_SESSION_CHAT_RESTORE;
 }
 
-// Глобальное хранилище для маппинга между сгенерированными ID и реальными Qwen chatId
 const chatIdMap = new Map();
 
 function mapChatId(generatedId, qwenChatId) {
@@ -194,31 +187,22 @@ function isOpenWebUiMetaRequest(messages) {
     if (!lastUserMessage) return false;
 
     const content = lastUserMessage.content;
-    if (Array.isArray(content)) return false; // multimodal / normal user message
+    if (Array.isArray(content)) return false;
     if (typeof content !== 'string') return false;
 
     const text = content.trimStart();
 
-    // OpenWebUI background/meta prompts that should not reuse the main chatId/session.
     if (text.startsWith('### Task:')) return true;
     if (text.startsWith('History:')) return true;
 
-    // Some variants embed history blocks and task instructions.
     if (text.includes('<chat_history>') && text.includes('### Task:')) return true;
 
     return false;
 }
 
-// ============================================
-// СЕССИОННАЯ СИСТЕМА ДЛЯ ОТСЛЕЖИВАНИЯ ЧАТОВ
-// ============================================
-// Scoped-сессии (по conversation_id/chat_id) включены всегда.
-// Unscoped fallback по IP + User-Agent работает только в legacy-режиме
-// через ALLOW_UNSCOPED_SESSION_CHAT_RESTORE=true.
-const sessionToChatMap = new Map(); // session-key -> {chatId, parentId, timestamp}
+const sessionToChatMap = new Map();
 
 function getSessionKey(req) {
-    // Создаём уникальный ключ сессии на основе IP и User-Agent
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
     const userAgent = req.get('user-agent') || 'unknown';
     return crypto.createHash('sha256').update(`${ip}||${userAgent}`).digest('hex');
@@ -235,7 +219,7 @@ function getSavedChatId(req, scope = null) {
 
     for (const sessionKey of keysToTry) {
         const sessionData = sessionToChatMap.get(sessionKey);
-        if (sessionData && (Date.now() - sessionData.timestamp) < 3600000) { // 1 hour
+        if (sessionData && (Date.now() - sessionData.timestamp) < 3600000) {
             return sessionData;
         }
     }
@@ -256,7 +240,6 @@ function saveChatIdForSession(req, chatId, parentId, scope = null) {
     const scopeSuffix = normalizedScope ? ` (scope=${normalizedScope})` : "";
     logDebug(`Saved chatId ${chatId} for session ${sessionKey.substring(0, 8)}${scopeSuffix}`);
 }
-// Очистка старых сессий каждые 10 минут
 setInterval(() => {
     const now = Date.now();
     const oneHourAgo = now - 3600000;
@@ -270,11 +253,10 @@ setInterval(() => {
     if (cleaned > 0) {
         logDebug(`Очищено ${cleaned} старых сессий`);
     }
-}, 600000); // 10 минут
+}, 600000);
 
 const router = express.Router();
 
-// ─── Multer для загрузки файлов ──────────────────────────────────────────────
 
 const storage = multer.diskStorage({
     destination(req, file, cb) {
@@ -283,67 +265,49 @@ const storage = multer.diskStorage({
         cb(null, uploadDir);
     },
     filename(req, file, cb) {
-        cb(null, Date.now() + '-' + crypto.randomBytes(8).toString('hex') + '-' + file.originalname);
+        const originalName = path.basename(file.originalname || 'upload')
+            .normalize('NFKC')
+            .replace(/[^a-zA-Z0-9._-]+/g, '_')
+            .slice(-120);
+        cb(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}-${originalName || 'upload'}`);
     }
 });
 
 const upload = multer({ storage, limits: { fileSize: MAX_FILE_SIZE } });
 
-// ─── Auth middleware ─────────────────────────────────────────────────────────
-
-function authMiddleware(req, res, next) {
-    const apiKeys = getApiKeys();
-    if (apiKeys.length === 0) return next();
-
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        logError('Отсутствует или некорректный заголовок авторизации');
-        return res.status(401).json({ error: 'Требуется авторизация' });
+async function removeUploadedFile(filePath) {
+    if (!filePath) return;
+    try {
+        await fs.promises.unlink(filePath);
+    } catch (error) {
+        logDebug(`Не удалось удалить временный файл: ${error.message}`);
     }
-
-    const token = authHeader.substring(7).trim();
-    if (!apiKeys.includes(token)) {
-        logError('Предоставлен недействительный API ключ');
-        return res.status(401).json({ error: 'Недействительный токен' });
-    }
-    next();
 }
-
-router.use(authMiddleware);
-router.use((req, res, next) => {
-    req.url = req.url.replace(/\/v[12](?=\/|$)/g, '').replace(/\/+/g, '/');
-    next();
-});
-
-// ─── Helpers: message parsing ────────────────────────────────────────────────
 
 function parseOpenAIMessages(messages) {
     const systemMsg = messages.find(msg => msg.role === 'system');
     const systemMessage = systemMsg ? systemMsg.content : null;
     const lastUserMessage = messages.filter(msg => msg.role === 'user').pop();
-    
+
     if (!lastUserMessage) {
         return { messageContent: null, systemMessage };
     }
-    
+
     let messageContent = lastUserMessage.content;
-    
-    // Преобразуем OpenAI format content array во внутренний формат
+
     if (Array.isArray(messageContent)) {
         messageContent = messageContent.map(item => {
             if (item.type === 'text') {
                 return { type: 'text', text: item.text };
             } else if (item.type === 'image_url' && item.image_url) {
-                // OpenAI format: image_url: { url: '...' }
                 return { type: 'image', image: item.image_url.url };
             } else if (item.type === 'image') {
-                // Уже во внутреннем формате
                 return { type: 'image', image: item.image };
             }
             return item;
         });
     }
-    
+
     return { messageContent, systemMessage };
 }
 
@@ -405,19 +369,10 @@ function shouldFoldOpenAITranscript(messages, combinedTools, effectiveChatId) {
     const nonSystemMessages = (messages || []).filter(msg => msg && msg.role !== 'system');
     if (nonSystemMessages.length === 0) return false;
 
-    // Hermes/OpenAI agents send the full state every request. After a tool call the
-    // next request often ends with role=tool, not role=user. Qwen Chat has no native
-    // OpenAI tool-result role, so preserving context means folding the whole OpenAI
-    // transcript into a single user message for that turn.
     if (hasOpenAIToolState(messages)) return true;
 
-    // If FreeQwenApi is used as a stateless OpenAI-compatible endpoint and no
-    // conversation id/chat id was provided, keep the complete client-side history.
     if (!effectiveChatId && nonSystemMessages.length > 1) return true;
 
-    // When tools are available, prefer the OpenAI transcript over Qwen's opaque web
-    // chat memory on multi-message turns. This keeps Hermes skill/tool discipline in
-    // the prompt visible to Qwen instead of depending on previous web-chat state.
     if (Array.isArray(combinedTools) && combinedTools.length > 0 && nonSystemMessages.length > 1) return true;
 
     return false;
@@ -543,8 +498,6 @@ function parseToolCallJson(content) {
         if (first >= 0 && last > first) text = text.slice(first, last + 1);
     }
     const parseAttempts = [text];
-    // Qwen sometimes emits one missing brace in the common shape:
-    // {"tool_calls":[{"name":"x","arguments":{...}}]} -> may become ..."arguments":{...}]}
     if (/^\s*\{\s*"tool_calls"\s*:\s*\[\s*\{/.test(text) && /\}\]\}\s*$/.test(text)) {
         parseAttempts.push(text.replace(/\}\]\}\s*$/, '}}]}'));
     }
@@ -577,7 +530,6 @@ function parseToolCallJson(content) {
                 };
             }).filter(Boolean);
         } catch {
-            // try next repair candidate
         }
     }
     return null;
@@ -647,90 +599,13 @@ function writeToolCallsSse(res, mappedModel, result, toolCalls) {
     res.end();
 }
 
-// ─── Helpers: streaming ──────────────────────────────────────────────────────
-
-async function handleStreamingResponse(res, mappedModel, messageContent, chatId, parentId, combinedTools, toolChoice, systemMessage) {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    const writeSse = (payload) => res.write('data: ' + JSON.stringify(payload) + '\n\n');
-
-    writeSse({
-        id: 'chatcmpl-stream', object: 'chat.completion.chunk',
-        created: Math.floor(Date.now() / 1000), model: mappedModel,
-        choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }]
-    });
-
-    try {
-        const result = await sendMessage(messageContent, mappedModel, chatId, parentId, null, combinedTools, toolChoice, systemMessage);
-
-        if (result.error) {
-            writeSse({
-                id: 'chatcmpl-stream', object: 'chat.completion.chunk',
-                created: Math.floor(Date.now() / 1000), model: mappedModel,
-                choices: [{ index: 0, delta: { content: `Ошибка: ${result.error}` }, finish_reason: null }]
-            });
-        } else if (result.choices?.[0]?.message) {
-            const content = String(result.choices[0].message.content || '');
-            const codePoints = Array.from(content);
-            const chunkSize = 16;
-            for (let i = 0; i < codePoints.length; i += chunkSize) {
-                writeSse({
-                    id: 'chatcmpl-stream', object: 'chat.completion.chunk',
-                    created: Math.floor(Date.now() / 1000), model: mappedModel,
-                    choices: [{ index: 0, delta: { content: codePoints.slice(i, i + chunkSize).join('') }, finish_reason: null }]
-                });
-                await new Promise(r => setTimeout(r, STREAMING_CHUNK_DELAY));
-            }
-        }
-
-        writeSse({
-            id: 'chatcmpl-stream', object: 'chat.completion.chunk',
-            created: Math.floor(Date.now() / 1000), model: mappedModel,
-            choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
-        });
-        res.write('data: [DONE]\n\n');
-        res.end();
-    } catch (error) {
-        logError('Ошибка при обработке потокового запроса', error);
-        writeSse({
-            id: 'chatcmpl-stream', object: 'chat.completion.chunk',
-            created: Math.floor(Date.now() / 1000), model: mappedModel,
-            choices: [{ index: 0, delta: { content: 'Internal server error' }, finish_reason: 'stop' }]
-        });
-        res.write('data: [DONE]\n\n');
-        res.end();
-    }
-}
-
-function handleNonStreamingResponse(res, result, mappedModel) {
-    if (result.error) {
-        return res.status(500).json({ error: { message: result.error, type: 'server_error' } });
-    }
-
-    res.json({
-        id: result.id || 'chatcmpl-' + Date.now(),
-        object: 'chat.completion',
-        created: Math.floor(Date.now() / 1000),
-        model: result.model || mappedModel,
-        choices: result.choices || [{ index: 0, message: { role: 'assistant', content: '' }, finish_reason: 'stop' }],
-        usage: result.usage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
-        chatId: result.chatId,
-        parentId: result.parentId
-    });
-}
-
-// ─── Routes ──────────────────────────────────────────────────────────────────
-
 router.post('/chat', async (req, res) => {
     try {
         const { message, messages, model, chatId, parentId, stream, chatType, size, waitForCompletion } = req.body;
 
-        // Поддержка как message, так и messages для совместимости
         let messageContent = message;
         let systemMessage = null;
-        let allMessages = messages; // Сохраняем всю историю
+        let allMessages = messages;
         const isMeta = isOpenWebUiMetaRequest(messages);
 
         if (messages && Array.isArray(messages)) {
@@ -766,12 +641,10 @@ router.post('/chat', async (req, res) => {
         }
         logInfo(`Используется модель: ${mappedModel}`);
 
-        // Поддержка стриминга для OpenWebUI
         if (stream) {
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Connection', 'keep-alive');
-            // Важно для OpenWebUI - не кэшировать
             res.setHeader('X-Accel-Buffering', 'no');
 
             const writeSse = (payload) => {
@@ -779,7 +652,6 @@ router.post('/chat', async (req, res) => {
             };
 
             try {
-                // Setup streaming callback
                 let streamingCallback = null;
                 let hasStreamedChunks = false;
                 if (stream) {
@@ -824,7 +696,6 @@ router.post('/chat', async (req, res) => {
                         ]
                     });
                 } else if (!hasStreamedChunks && result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-                    // Qwen вернул JSON/обычный ответ вместо SSE - отправляем контент одним чанком
                     const content = result.choices[0].message.content;
                     logDebug(`JSON response content length: ${content.length}`);
                     if (typeof streamingCallback === 'function') {
@@ -843,9 +714,7 @@ router.post('/chat', async (req, res) => {
                 } else {
                     logDebug(`Result structure: ${JSON.stringify(Object.keys(result))}`);
                 }
-                // Чанки уже были отправлены через streamingCallback, не дублируем!
 
-                // Финальный чанк
                 writeSse({
                     id: 'chatcmpl-' + Date.now(),
                     object: 'chat.completion.chunk',
@@ -880,8 +749,7 @@ router.post('/chat', async (req, res) => {
         if (result.choices && result.choices[0] && result.choices[0].message) {
             const responseLength = result.choices[0].message.content ? result.choices[0].message.content.length : 0;
             logInfo(`Ответ успешно сформирован для запроса, длина ответа: ${responseLength}`);
-            
-            // Сохраняем историю чата
+
             if (result.chatId) {
                 try {
                     const currentChat = loadHistory(result.chatId);
@@ -1032,7 +900,6 @@ router.post('/chat/completions', async (req, res) => {
 
         const isMeta = isOpenWebUiMetaRequest(messages);
 
-        // Используем переданный chatId ИЛИ восстанавливаем из сессии
         let effectiveChatId = explicitChatId;
         let effectiveParentId = explicitParentId;
 
@@ -1077,7 +944,6 @@ router.post('/chat/completions', async (req, res) => {
             }
         }
 
-        // Извлекаем system message если есть
         const systemMsg = messages.find(msg => msg.role === 'system');
         const systemMessage = systemMsg ? systemMsg.content : null;
         const { combinedTools } = buildCombinedTools(tools, functions, tool_choice);
@@ -1089,24 +955,21 @@ router.post('/chat/completions', async (req, res) => {
         }
 
         let messageContent = preparedInput.messageContent;
-        
-        // Преобразуем OpenAI format content array во внутренний формат
+
         if (Array.isArray(messageContent)) {
             messageContent = messageContent.map(item => {
                 if (item.type === 'text') {
                     return { type: 'text', text: item.text };
                 } else if (item.type === 'image_url' && item.image_url) {
-                    // OpenAI format: image_url: { url: '...' }
                     return { type: 'image', image: item.image_url.url };
                 } else if (item.type === 'image') {
-                    // Уже во внутреннем формате
                     return { type: 'image', image: item.image };
                 }
                 return item;
             });
         }
-        
-        const files = preparedInput.files || []; // ← ИЗВЛЕКАЕМ FILES
+
+        const files = preparedInput.files || [];
         if (preparedInput.folded) {
             logInfo('OpenAI/Hermes transcript folded into user message for context/tool-result preservation');
         }
@@ -1124,14 +987,13 @@ router.post('/chat/completions', async (req, res) => {
         logInfo(`Используется модель: ${mappedModel}`);
         if (systemMessage) logInfo(`System message: ${systemMessage.substring(0, 50)}${systemMessage.length > 50 ? '...' : ''}`);
 
-        const qwenTools = null; // Qwen Chat web API не умеет OpenAI tool schemas; эмулируем через JSON prompt ниже.
+        const qwenTools = null;
         const toolAwareSystemMessage = applyToolPrompt(systemMessage, combinedTools);
 
         if (toolAwareSystemMessage) {
             logInfo(`System message: ${toolAwareSystemMessage.substring(0, 50)}${toolAwareSystemMessage.length > 50 ? '...' : ''}`);
         }
 
-        // Логируем полную историю сообщений
         logInfo(`История содержит ${messages.length} сообщений: ${messages.map(m => m.role).join(', ')}`);
         if (effectiveChatId) {
             logInfo(`Используется chatId: ${effectiveChatId}, parentId: ${effectiveParentId || 'null'}`);
@@ -1153,7 +1015,6 @@ router.post('/chat/completions', async (req, res) => {
             try {
                 const qwenChatId = await resolveQwenChatId(effectiveChatId, mappedModel);
 
-                // Setup streaming callback if stream=true
                 let streamingCallback = null;
                 let hasStreamedChunks = false;
                 const captureToolCalls = Array.isArray(combinedTools) && combinedTools.length > 0;
@@ -1177,7 +1038,7 @@ router.post('/chat/completions', async (req, res) => {
                     mappedModel,
                     qwenChatId,
                     effectiveParentId,
-                    files, // ← ПЕРЕДАЁМ FILES
+                    files,
                     qwenTools,
                     tool_choice,
                     toolAwareSystemMessage,
@@ -1196,9 +1057,7 @@ router.post('/chat/completions', async (req, res) => {
                     }
                 }
 
-                // Сохраняем chatId в сессию для следующих запросов
                 if (!isMeta && result.chatId) {
-                    // Если мы использовали сгенерированный effectiveChatId — сохраните маппинг
                     if (effectiveChatId && effectiveChatId.startsWith('chat_') && result.chatId) {
                         mapChatId(effectiveChatId, result.chatId);
                         logDebug(`Маппинг сохранён: ${effectiveChatId} -> ${result.chatId}`);
@@ -1219,7 +1078,6 @@ router.post('/chat/completions', async (req, res) => {
                         ]
                     });
                 } else if (!hasStreamedChunks && result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-                    // Qwen вернул JSON/обычный ответ вместо SSE - отправляем контент одним чанком
                     const content = result.choices[0].message.content;
                     logDebug(`JSON response content length: ${content.length}`);
                     if (typeof streamingCallback === 'function') {
@@ -1238,7 +1096,6 @@ router.post('/chat/completions', async (req, res) => {
                 } else {
                     logDebug(`Result structure: ${JSON.stringify(Object.keys(result))}`);
                 }
-                // Чанки уже были отправлены через streamingCallback, не дублируем!
 
                 writeSse({
                     id: 'chatcmpl-stream',
@@ -1270,7 +1127,6 @@ router.post('/chat/completions', async (req, res) => {
             const qwenChatId = await resolveQwenChatId(effectiveChatId, mappedModel);
             const result = await sendMessage(messageContent, mappedModel, qwenChatId, effectiveParentId, null, qwenTools, tool_choice, toolAwareSystemMessage);
 
-            // Сохраняем chatId в сессию для следующих запросов
             if (!isMeta && result.chatId) {
                 if (effectiveChatId && effectiveChatId.startsWith('chat_') && result.chatId) {
                     mapChatId(effectiveChatId, result.chatId);
@@ -1314,7 +1170,6 @@ router.post('/chat/completions', async (req, res) => {
                 parentId: result.parentId
             };
 
-            // Сохраняем историю чата
             if (result.chatId) {
                 try {
                     const currentChat = loadHistory(result.chatId);
@@ -1337,7 +1192,6 @@ router.post('/chat/completions', async (req, res) => {
     }
 });
 
-// OpenAI совместимый эндпоинт v1 (для Open WebUI и других клиентов)
 router.post('/v1/chat/completions', async (req, res) => {
     try {
         const { messages, model, stream, tools, functions, tool_choice, chatId } = req.body;
@@ -1357,7 +1211,6 @@ router.post('/v1/chat/completions', async (req, res) => {
 
         const isMeta = isOpenWebUiMetaRequest(messages);
 
-        // Используем переданный chatId ИЛИ восстанавливаем из сессии
         let effectiveChatId = explicitChatId;
         let effectiveParentId = explicitParentId;
 
@@ -1402,7 +1255,6 @@ router.post('/v1/chat/completions', async (req, res) => {
             }
         }
 
-        // Извлекаем system message если есть
         const systemMsg = messages.find(msg => msg.role === 'system');
         const systemMessage = systemMsg ? systemMsg.content : null;
         const { combinedTools } = buildCombinedTools(tools, functions, tool_choice);
@@ -1414,24 +1266,21 @@ router.post('/v1/chat/completions', async (req, res) => {
         }
 
         let messageContent = preparedInput.messageContent;
-        
-        // Преобразуем OpenAI format content array во внутренний формат
+
         if (Array.isArray(messageContent)) {
             messageContent = messageContent.map(item => {
                 if (item.type === 'text') {
                     return { type: 'text', text: item.text };
                 } else if (item.type === 'image_url' && item.image_url) {
-                    // OpenAI format: image_url: { url: '...' }
                     return { type: 'image', image: item.image_url.url };
                 } else if (item.type === 'image') {
-                    // Уже во внутреннем формате
                     return { type: 'image', image: item.image };
                 }
                 return item;
             });
         }
-        
-        const files = preparedInput.files || []; // ← ИЗВЛЕКАЕМ FILES
+
+        const files = preparedInput.files || [];
         if (preparedInput.folded) {
             logInfo('OpenAI/Hermes transcript folded into user message for context/tool-result preservation');
         }
@@ -1452,13 +1301,12 @@ router.post('/v1/chat/completions', async (req, res) => {
             logInfo(`System message: ${systemMessage.substring(0, 50)}${systemMessage.length > 50 ? '...' : ''}`);
         }
 
-        const qwenTools = null; // Qwen Chat web API не умеет OpenAI tool schemas; эмулируем через JSON prompt ниже.
+        const qwenTools = null;
         const toolAwareSystemMessage = applyToolPrompt(systemMessage, combinedTools);
         if (toolAwareSystemMessage) {
             logInfo(`System message: ${toolAwareSystemMessage.substring(0, 50)}${toolAwareSystemMessage.length > 50 ? '...' : ''}`);
         }
 
-        // Логируем полную историю сообщений
         logInfo(`История содержит ${messages.length} сообщений: ${messages.map(m => m.role).join(', ')}`);
         if (effectiveChatId) {
             logInfo(`Используется chatId: ${effectiveChatId}, parentId: ${effectiveParentId || 'null'}`);
@@ -1480,14 +1328,12 @@ router.post('/v1/chat/completions', async (req, res) => {
             try {
                 const qwenChatId = await resolveQwenChatId(effectiveChatId, mappedModel);
 
-                // Setup streaming callback if stream=true
                 let streamingCallback = null;
                 let hasStreamedChunks = false;
                 const captureToolCalls = Array.isArray(combinedTools) && combinedTools.length > 0;
                 if (stream && !captureToolCalls) {
                     streamingCallback = (chunk) => {
                         hasStreamedChunks = true;
-                        // OpenWebUI не нуждается в role в чанках - только контент
                         writeSse({
                             id: 'chatcmpl-' + Date.now(),
                             object: 'chat.completion.chunk',
@@ -1499,13 +1345,13 @@ router.post('/v1/chat/completions', async (req, res) => {
                         });
                     };
                 }
-                
+
                 const result = await sendMessage(
                     messageContent,
                     mappedModel,
                     qwenChatId,
                     effectiveParentId,
-                    files, // ← ИЗВЛЕКАЕМ FILES
+                    files,
                     qwenTools,
                     tool_choice,
                     toolAwareSystemMessage,
@@ -1524,7 +1370,6 @@ router.post('/v1/chat/completions', async (req, res) => {
                     }
                 }
 
-                // Сохраняем chatId в сессию для следующих запросов
                 if (!isMeta && result.chatId) {
                     if (shouldPersistSessionContext(conversationScope)) {
                         saveChatIdForSession(req, result.chatId, result.parentId, conversationScope);
@@ -1542,7 +1387,6 @@ router.post('/v1/chat/completions', async (req, res) => {
                         ]
                     });
                 } else if (!hasStreamedChunks && result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content) {
-                    // Qwen вернул JSON/обычный ответ вместо SSE - отправляем контент одним чанком
                     const content = result.choices[0].message.content;
                     logDebug(`JSON response content length: ${content.length}`);
                     if (typeof streamingCallback === 'function') {
@@ -1561,7 +1405,6 @@ router.post('/v1/chat/completions', async (req, res) => {
                 } else {
                     logDebug(`Result structure: ${JSON.stringify(Object.keys(result))}`);
                 }
-                // Чанки уже были отправлены через streamingCallback, не дублируем!
 
                 writeSse({
                     id: 'chatcmpl-stream',
@@ -1594,9 +1437,7 @@ router.post('/v1/chat/completions', async (req, res) => {
 
             const result = await sendMessage(messageContent, mappedModel, qwenChatId, effectiveParentId, files, qwenTools, tool_choice, toolAwareSystemMessage);
 
-            // Сохраняем chatId в сессии для следующих запросов
             if (!isMeta && result.chatId) {
-                // Если мы использовали сгенерированный effectiveChatId — сохраните маппинг
                 if (effectiveChatId && effectiveChatId.startsWith('chat_') && result.chatId) {
                     mapChatId(effectiveChatId, result.chatId);
                     logDebug(`Маппинг сохранён: ${effectiveChatId} -> ${result.chatId}`);
@@ -1612,7 +1453,6 @@ router.post('/v1/chat/completions', async (req, res) => {
                 });
             }
 
-            // Извлекаем контент сообщения
             let messageText = '';
             if (result.choices && result.choices[0] && result.choices[0].message) {
                 messageText = result.choices[0].message.content || '';
@@ -1643,14 +1483,11 @@ router.post('/v1/chat/completions', async (req, res) => {
                     completion_tokens: 0,
                     total_tokens: 0
                 },
-                // Передаём метаданные для сохранения контекста
                 x_qwen_chat_id: result.chatId,
                 x_qwen_parent_id: result.parentId || result.response_id
             };
 
-            // Сохраняем историю чата для v1 эндпоинта
             if (result.chatId) {
-                // Сохраняем chatId в сессии для последующих запросов от этого клиента
                 if (!isMeta) {
                     try {
                         if (shouldPersistSessionContext(conversationScope)) {
@@ -1684,12 +1521,12 @@ router.post('/v1/chat/completions', async (req, res) => {
 
 router.post('/files/getstsToken', async (req, res) => {
     try {
-        logInfo(`Запрос на получение STS токена: ${JSON.stringify(req.body)}`);
         const fileInfo = req.body;
         if (!fileInfo?.filename || !fileInfo?.filesize || !fileInfo?.filetype) {
             logError('Некорректные данные о файле');
             return res.status(400).json({ error: 'Некорректные данные о файле' });
         }
+        logInfo(`Запрос на получение STS токена для файла: ${fileInfo.filename}`);
         res.json(await getStsToken(fileInfo));
     } catch (error) {
         logError('Ошибка при получении STS токена', error);
@@ -1704,7 +1541,7 @@ router.post('/files/upload', upload.single('file'), async (req, res) => {
 
         const result = await uploadFileToQwen(req.file.path);
 
-        try { fs.unlinkSync(req.file.path); } catch { /* file already removed or inaccessible */ }
+        await removeUploadedFile(req.file.path);
 
         if (result.success) {
             logInfo(`Файл успешно загружен в OSS: ${result.fileName}`);
@@ -1715,12 +1552,11 @@ router.post('/files/upload', upload.single('file'), async (req, res) => {
         }
     } catch (error) {
         logError('Ошибка при загрузке файла', error);
-        if (req.file?.path) { try { fs.unlinkSync(req.file.path); } catch { /* ignore */ } }
+        await removeUploadedFile(req.file?.path);
         res.status(500).json({ error: 'Внутренняя ошибка сервера' });
     }
 });
 
-// Эндпоинт для сохранения истории чата (для работы с Open WebUI)
 router.post('/chats/:chatId/history', async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -1733,8 +1569,6 @@ router.post('/chats/:chatId/history', async (req, res) => {
             return res.status(400).json({ error: 'История сообщений должна быть массивом' });
         }
 
-        // Здесь можно добавить логику сохранения истории
-        // Для теперь просто подтверждаем сохранение
         res.json({
             success: true,
             chatId: chatId,
@@ -1746,15 +1580,12 @@ router.post('/chats/:chatId/history', async (req, res) => {
     }
 });
 
-// Эндпоинт для получения истории чата (для работы с Open WebUI)
 router.get('/chats/:chatId/history', async (req, res) => {
     try {
         const { chatId } = req.params;
 
         logInfo(`Запрос истории для чата: ${chatId}`);
 
-        // Здесь можно добавить логику получения истории из БД
-        // Для теперь возвращаем пустую историю
         res.json({
             success: true,
             chatId: chatId,
@@ -1766,9 +1597,6 @@ router.get('/chats/:chatId/history', async (req, res) => {
     }
 });
 
-// ============================================
-// МЕДИА-ЭНДПОИНТЫ QWEN CHAT / DASHSCOPE
-// ============================================
 
 const CHAT_MEDIA_MODEL = 'qwen3-vl-plus';
 
@@ -1832,11 +1660,6 @@ function buildVideoResponse({ result, prompt, model, waitForCompletion }) {
     };
 }
 
-/**
- * POST /api/images/generations
- * По умолчанию генерирует изображения через Qwen Chat (`chatType: t2i`).
- * Для старого DashScope-режима передайте `provider: "dashscope"`.
- */
 router.post('/images/generations', async (req, res) => {
     try {
         const { prompt, model, n, size, response_format, provider } = req.body;
@@ -1917,9 +1740,6 @@ router.post('/images/generations', async (req, res) => {
     }
 });
 
-/**
- * POST /api/videos/generations - Генерация видео через Qwen Chat (`chatType: t2v`).
- */
 router.post('/videos/generations', async (req, res) => {
     try {
         const { prompt, model, size, wait, waitForCompletion } = req.body;
@@ -1962,9 +1782,6 @@ router.post('/videos/generations', async (req, res) => {
     }
 });
 
-/**
- * GET /api/tasks/status/:taskId - статус долгой задачи Qwen Chat (видео и будущие async-функции).
- */
 router.get('/tasks/status/:taskId', async (req, res) => {
     try {
         const { taskId } = req.params;
@@ -1982,9 +1799,6 @@ router.get('/tasks/status/:taskId', async (req, res) => {
     }
 });
 
-/**
- * GET /api/images/models - модели для генерации изображений.
- */
 router.get('/images/models', async (req, res) => {
     try {
         const dashScopeModels = getAvailableImageModels();
@@ -2018,9 +1832,6 @@ router.get('/images/models', async (req, res) => {
     }
 });
 
-/**
- * GET /api/videos/models - модели для генерации видео через Qwen Chat.
- */
 router.get('/videos/models', async (req, res) => {
     res.json({
         object: 'list',
@@ -2037,9 +1848,6 @@ router.get('/videos/models', async (req, res) => {
     });
 });
 
-/**
- * GET /api/images/status - Проверка статуса генерации изображений.
- */
 router.get('/images/status', async (req, res) => {
     try {
         const apiKey = process.env.DASHSCOPE_API_KEY;
@@ -2071,9 +1879,6 @@ router.get('/images/status', async (req, res) => {
     }
 });
 
-/**
- * GET /api/videos/status - Проверка готовности видео-генерации Qwen Chat.
- */
 router.get('/videos/status', async (req, res) => {
     const tokens = listTokens();
     const now = Date.now();

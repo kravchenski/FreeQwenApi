@@ -356,6 +356,10 @@ Create a local `.env` or export environment variables before starting the proxy.
 | `MAX_RETRY_COUNT` | `3` | Qwen request retry limit |
 | `STREAMING_CHUNK_DELAY` | `20` | Streaming chunk delay in milliseconds |
 | `ALLOW_UNSCOPED_SESSION_CHAT_RESTORE` | `false` | Enable legacy IP/User-Agent chat restore |
+| `REQUEST_BODY_LIMIT` | `25mb` | Maximum JSON and URL-encoded request body |
+| `RATE_LIMIT_WINDOW_MS` | `60000` | Per-client rate-limit window |
+| `RATE_LIMIT_MAX_REQUESTS` | `120` | Maximum requests per window; `0` disables |
+| `CORS_ALLOWED_ORIGINS` | unset | Comma-separated browser origins; use `*` explicitly for public CORS |
 | `DASHSCOPE_API_KEY` | unset | Optional legacy image-generation provider |
 
 Advanced endpoint, timeout, logging, and polling options are defined in
