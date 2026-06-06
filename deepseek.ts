@@ -37,6 +37,7 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
             : messages;
         const { response, sessionId } = await deepSeekCompletion({ messages: upstreamMessages, model, conversationId });
         const id = `chatcmpl-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
+        const created = Math.floor(Date.now() / 1000);
         const state = { phase: 'content' as const, fragment: undefined as string | undefined };
         const reader = response.body?.getReader();
         if (!reader) throw new Error('DeepSeek returned an empty response body');
@@ -49,7 +50,7 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
         if (stream) {
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
-            res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}\n\n`);
+            res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}\n\n`);
         }
 
         while (true) {
@@ -61,11 +62,11 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
                 const event = parseDeepSeekEvent(line.trim(), state);
                 if (event?.content) {
                     content += event.content;
-                    if (stream && !captureToolCalls) res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }] })}\n\n`);
+                    if (stream && !captureToolCalls) res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }] })}\n\n`);
                 }
                 if (event?.reasoning) {
                     reasoning += event.reasoning;
-                    if (stream && !captureToolCalls) res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: { reasoning_content: event.reasoning }, finish_reason: null }] })}\n\n`);
+                    if (stream && !captureToolCalls) res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { reasoning_content: event.reasoning }, finish_reason: null }] })}\n\n`);
                 }
             }
             if (done) break;
@@ -77,6 +78,7 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
                 res.write(`data: ${JSON.stringify({
                     id,
                     object: 'chat.completion.chunk',
+                    created,
                     model,
                     choices: [{
                         index: 0,
@@ -85,19 +87,25 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
                     }]
                 })}\n\n`);
             }
-            res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] })}\n\n`);
+            res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'tool_calls' }] })}\n\n`);
             res.write('data: [DONE]\n\n');
             return res.end();
         }
         if (stream) {
-            res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
+            if (captureToolCalls && reasoning) {
+                res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { reasoning_content: reasoning }, finish_reason: null }] })}\n\n`);
+            }
+            if (captureToolCalls && content) {
+                res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content }, finish_reason: null }] })}\n\n`);
+            }
+            res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] })}\n\n`);
             res.write('data: [DONE]\n\n');
             return res.end();
         }
         return res.json({
             id,
             object: 'chat.completion',
-            created: Math.floor(Date.now() / 1000),
+            created,
             model,
             choices: [{
                 index: 0,

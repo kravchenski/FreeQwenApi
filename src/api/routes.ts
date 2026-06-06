@@ -478,6 +478,7 @@ GENERAL TOOL RULES:
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
 - Never invent tool results. After tool results appear in the conversation, use them to continue.
 - Use exact tool names from the list above. Do not prefix names with namespaces.
+- Never output an empty tool_calls array. If no tool is needed, answer the user normally in plain text.
 - For source-code changes, prefer patch/apply_patch. For a complete file replacement, use write/write_file with the final content.
 - For small exact replacements, edit is allowed. Keep oldText/newText source syntax valid and preserve all quotes, backticks, asterisks, and escapes.
 - Keep every JSON property name and path as one uninterrupted string. Never insert whitespace or line breaks inside names such as "content", "path", or "oldText".
@@ -486,7 +487,7 @@ GENERAL TOOL RULES:
 - Preserve source code exactly inside tool arguments. In particular, CSS comments must use /* comment */ with both asterisk characters.
 - Preserve JavaScript and TypeScript delimiters exactly. Template literals containing \${...} require surrounding backticks, and selector strings passed to querySelector/querySelectorAll require quotes or backticks.
 
-TOOL CALL OUTPUT FORMAT — respond ONLY with minified JSON, no markdown, no prose:
+TOOL CALL OUTPUT FORMAT — ONLY when actually calling one or more tools, respond with minified JSON, no markdown, no prose:
 {"tool_calls":[{"name":"tool_name","arguments":{}}]}
 
 Multiple calls are allowed:
@@ -497,7 +498,7 @@ Supported fallback shapes also work, but the format above is preferred.
 Compact tool schemas:
 ${JSON.stringify(schemas.map(({priority, ...schema}) => schema), null, 2)}
 
-If no tool is needed and no skill rule applies, answer normally.`;
+If no tool is needed and no skill rule applies, do not output JSON and answer normally in plain text.`;
 }
 
 const TOOL_CALL_JSON_KEYS = [

@@ -31,6 +31,8 @@ describe('DeepSeek web provider', () => {
         parseDeepSeekEvent('data: {"p":"response/fragments/-1/type","v":"RESPONSE"}', state);
         expect(parseDeepSeekEvent('data: {"p":"response/fragments/-1/content","v":"answer"}', state))
             .toEqual({ content: 'answer' });
+        expect(parseDeepSeekEvent('data: {"p":"response/status","v":"FINISHED"}', state))
+            .toEqual({ done: true });
     });
 
     test('loads the bundled DeepSeek PoW solver', async () => {

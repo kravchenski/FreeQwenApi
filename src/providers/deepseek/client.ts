@@ -126,6 +126,9 @@ export function parseDeepSeekEvent(line: string, state: { phase: 'content' | 'th
     const event = JSON.parse(data);
     const path = event.p;
     const value = event.v;
+    if (path === 'response/status' || path?.endsWith('/status')) {
+        return value === 'FINISHED' ? { done: true } : null;
+    }
     if (path === 'response/fragments/-1/type') state.fragment = value;
     if (path === 'response/thinking_content') state.phase = 'thinking';
     if (path === 'response/content') state.phase = 'content';
