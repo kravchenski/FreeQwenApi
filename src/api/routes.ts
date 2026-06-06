@@ -475,6 +475,9 @@ ${toolNames}
 ${skillRules}
 GENERAL TOOL RULES:
 - For greetings, thanks, casual conversation, explanations, and questions answer directly. Never call bash/terminal merely to print or echo a reply.
+- For codebase tasks such as implement, fix, refactor, review, test, or inspect, you MUST call read/ls/find/grep/bash or another suitable workspace tool before making claims or giving a final answer.
+- Never claim that a file exists, was deleted, changed, tested, or listed unless that fact came from a tool result in the current conversation.
+- Do not print a shell command as a suggestion when you can call the corresponding tool yourself.
 - When an action, lookup, file read/write, command, web search, calculation, or verification is needed, CALL A TOOL instead of describing the action.
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
 - Never invent tool results. After tool results appear in the conversation, use them to continue.
@@ -515,6 +518,27 @@ export function repairToolCallJsonKeys(text) {
         repaired = repaired.replace(new RegExp(`"${splitKey}"\\s*:`, 'g'), `"${key}":`);
     }
     return repaired;
+}
+
+export function extractFirstToolCallObject(text) {
+    const start = text.indexOf('{"tool_calls"');
+    if (start < 0) return null;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < text.length; index++) {
+        const char = text[index];
+        if (inString) {
+            if (escaped) escaped = false;
+            else if (char === '\\') escaped = true;
+            else if (char === '"') inString = false;
+            continue;
+        }
+        if (char === '"') inString = true;
+        else if (char === '{') depth++;
+        else if (char === '}' && --depth === 0) return text.slice(start, index + 1);
+    }
+    return null;
 }
 
 export function hasObviouslyBrokenEditArguments(rawArgs) {
@@ -629,7 +653,13 @@ export function parseToolCallJson(content) {
     if (first > 0 || last !== text.length - 1) {
         if (first >= 0 && last > first) text = text.slice(first, last + 1);
     }
-    const parseAttempts = [text, repairToolCallJsonKeys(text)];
+    const firstToolCall = extractFirstToolCallObject(content);
+    const parseAttempts = [
+        text,
+        repairToolCallJsonKeys(text),
+        firstToolCall,
+        firstToolCall ? repairToolCallJsonKeys(firstToolCall) : null
+    ].filter(Boolean);
     if (/^\s*\{\s*"tool_calls"\s*:\s*\[\s*\{/.test(text) && /\}\]\}\s*$/.test(text)) {
         parseAttempts.push(text.replace(/\}\]\}\s*$/, '}}]}'));
     }

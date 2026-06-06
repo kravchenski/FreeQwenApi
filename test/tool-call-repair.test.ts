@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import {
     buildConversationScopeFromHistory,
+    extractFirstToolCallObject,
     hasObviouslyBrokenEditArguments,
     recoverSimpleToolCalls,
     recoverBrokenBashToolCall,
@@ -57,6 +58,16 @@ describe('tool call JSON repair', () => {
         ]);
 
         expect(prompt).toContain('Available tool names exactly:\nedit');
+    });
+
+    test('requires workspace inspection before codebase claims', () => {
+        const prompt = toolsToPrompt([
+            { function: { name: 'ls', parameters: { type: 'object' } } },
+            { function: { name: 'read', parameters: { type: 'object' } } }
+        ]);
+
+        expect(prompt).toContain('For codebase tasks such as implement, fix, refactor');
+        expect(prompt).toContain('Never claim that a file exists, was deleted, changed, tested, or listed');
     });
 
     test('repairs common missing backticks in JavaScript edits', () => {
@@ -121,5 +132,12 @@ describe('tool call JSON repair', () => {
             arguments: { command: 'echo "Привет!"' }
         });
         expect(parseToolCallJson(broken)).toBeNull();
+    });
+
+    test('extracts the first tool call when prose and duplicate JSON surround it', () => {
+        const content = 'Сначала изучу проект.\n{"tool_calls":[{"name":"ls","arguments":{"path":"."}}]}\n{"tool_calls":[{"name":"ls","arguments":{"path":"."}}]}';
+
+        expect(JSON.parse(extractFirstToolCallObject(content)).tool_calls).toHaveLength(1);
+        expect(parseToolCallJson(content)?.[0].function.name).toBe('ls');
     });
 });

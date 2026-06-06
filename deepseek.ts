@@ -14,6 +14,21 @@ const models = ['deepseek-default', 'deepseek-reasoner', 'deepseek-expert', 'dee
 
 app.use(bodyParser.json({ limit: process.env.REQUEST_BODY_LIMIT || '25mb' }));
 
+function isCodebaseActionRequest(messages: Array<Record<string, any>>) {
+    const lastUser = [...messages].reverse().find(message => message?.role === 'user');
+    const text = typeof lastUser?.content === 'string' ? lastUser.content.toLowerCase() : '';
+    return /рефактор|исправ|измени|добав|удал|проверь|тест|review|refactor|implement|fix|change|inspect|test/.test(text);
+}
+
+function fallbackInspectionToolCall(tools: Array<Record<string, any>> | null) {
+    if (!Array.isArray(tools)) return null;
+    const names = new Set(tools.map(tool => (tool?.function || tool)?.name));
+    if (names.has('ls')) return { name: 'ls', arguments: { path: '.' } };
+    if (names.has('bash')) return { name: 'bash', arguments: { command: 'ls -la' } };
+    if (names.has('find')) return { name: 'find', arguments: { path: '.', pattern: '*' } };
+    return null;
+}
+
 app.get(['/api/models', '/api/v1/models'], (_req, res) => {
     res.json({
         object: 'list',
@@ -82,7 +97,18 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
             ? conversationalShellText(recoveredShell.name, recoveredShell.arguments)
             : null;
         if (conversationalText) content = conversationalText;
-        const toolCalls = captureToolCalls && !conversationalText ? parseToolCallJson(content) : null;
+        let toolCalls = captureToolCalls && !conversationalText ? parseToolCallJson(content) : null;
+        if (!toolCalls?.length && captureToolCalls && isCodebaseActionRequest(messages)) {
+            const fallback = fallbackInspectionToolCall(combinedTools);
+            if (fallback) {
+                toolCalls = [{
+                    id: `call_${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`,
+                    type: 'function',
+                    function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
+                    index: 0
+                }];
+            }
+        }
         if (stream && toolCalls?.length) {
             for (const call of toolCalls) {
                 res.write(`data: ${JSON.stringify({
