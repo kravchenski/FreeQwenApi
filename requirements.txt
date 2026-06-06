@@ -1,7 +1,0 @@
-fastapi
-uvicorn
-playwright
-httpx
-openai
-python-dotenv
-python-multipart
