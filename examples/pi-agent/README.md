@@ -50,8 +50,10 @@ bun run start:deepseek
 ./start-deepseek.sh
 ```
 
-Choose `1` to add an account. Chromium opens `chat.deepseek.com`; sign in,
-return to the terminal, and press Enter. Cookies and the Bearer token are saved
+Choose `1` to register or add an account. Chromium opens the DeepSeek sign-in
+page; complete registration or sign in, wait until the chat interface appears,
+return to the terminal, and press Enter. The proxy captures the authenticated
+request token and verifies the `ds_session_id` cookie before saving the account
 under `session/deepseek/`. The menu also supports relogin and account removal.
 
 Manage DeepSeek accounts without starting the proxy:

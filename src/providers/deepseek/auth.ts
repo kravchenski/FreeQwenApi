@@ -12,8 +12,10 @@ import {
 puppeteer.use(StealthPlugin());
 
 const baseUrl = process.env.DEEPSEEK_BASE_URL || 'https://chat.deepseek.com';
+const signInUrl = process.env.DEEPSEEK_SIGN_IN_URL || `${baseUrl}/sign_in`;
 
-async function extractToken(page: any) {
+async function extractToken(page: any, capturedToken?: string | null) {
+    if (capturedToken) return capturedToken;
     const storageToken = await page.evaluate(() => {
         const stores = [localStorage, sessionStorage];
         const preferred = ['token', 'auth_token', 'access_token', 'userToken'];
@@ -34,30 +36,57 @@ async function extractToken(page: any) {
     if (storageToken) return storageToken;
 
     return page.evaluate(async () => {
-        const response = await fetch('/api/v0/users/current');
+        const response = await fetch('/api/v0/users/current', { credentials: 'include' });
         const body = await response.json().catch(() => null);
-        return body?.data?.biz_data?.token || body?.data?.token || null;
+        return body?.data?.biz_data?.token || body?.data?.token ||
+            body?.data?.biz_data?.user?.token || null;
     });
 }
 
 export async function addDeepSeekAccountInteractive(replaceId?: string) {
     console.log('\n======================================================');
     console.log(replaceId ? `Повторный вход DeepSeek: ${replaceId}` : 'Добавление нового аккаунта DeepSeek');
-    console.log('Войдите на chat.deepseek.com и после загрузки чата нажмите Enter.');
+    console.log('Зарегистрируйтесь или войдите на chat.deepseek.com.');
+    console.log('После появления интерфейса чата вернитесь в консоль и нажмите Enter.');
     console.log('======================================================');
 
     const browser = await puppeteer.launch({
         headless: false,
+        slowMo: 30,
         executablePath: process.env.CHROME_PATH || undefined,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-blink-features=AutomationControlled']
+        defaultViewport: { width: 1920, height: 1080 },
+        args: [
+            '--no-sandbox', '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
+            '--disable-dev-shm-usage',
+            '--start-maximized',
+            '--no-first-run',
+            '--no-default-browser-check'
+        ]
     });
     try {
         const page = await browser.newPage();
-        await page.goto(baseUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
-        await prompt('После успешного входа нажмите Enter...');
-        const token = await extractToken(page);
+        let capturedToken: string | null = null;
+        page.on('request', (request: any) => {
+            const authorization = request.headers()?.authorization;
+            if (typeof authorization === 'string' && authorization.toLowerCase().startsWith('bearer ')) {
+                capturedToken = authorization.slice(7).trim();
+            }
+        });
+        await page.setExtraHTTPHeaders({ 'Accept-Language': 'en-US,en;q=0.9' });
+        await page.goto(signInUrl, { waitUntil: 'domcontentloaded', timeout: 120_000 });
+        await prompt('После регистрации/входа и появления чата нажмите Enter...');
+        await page.goto(baseUrl, { waitUntil: 'networkidle2', timeout: 120_000 }).catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        const token = await extractToken(page, capturedToken);
         const cookies = await page.cookies();
-        if (!token) throw new Error('Не удалось извлечь DeepSeek Bearer token');
+        const sessionCookie = cookies.find((cookie: any) => cookie.name === 'ds_session_id');
+        if (!sessionCookie) {
+            throw new Error('DeepSeek login не подтверждён: cookie ds_session_id не найден');
+        }
+        if (!token) {
+            throw new Error('DeepSeek login подтверждён, но Bearer token не найден. Обновите страницу чата и повторите.');
+        }
         const id = replaceId || `deepseek_${Date.now()}`;
         addDeepSeekAccount({ id, token, cookies, invalid: false, resetAt: null });
         console.log(`Аккаунт DeepSeek ${id} сохранён.`);
@@ -101,7 +130,7 @@ export async function runDeepSeekAccountMenu() {
         const accounts = loadDeepSeekAccounts();
         printAccounts(accounts);
         console.log('\n=== Меню DeepSeek ===');
-        console.log('1 - Добавить новый аккаунт');
+        console.log('1 - Зарегистрировать или добавить новый аккаунт');
         console.log('2 - Перелогинить аккаунт');
         console.log('3 - Запустить прокси (по умолчанию)');
         console.log('4 - Удалить аккаунт');
