@@ -1,12 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 
 import {
+    buildConversationScopeFromHistory,
     hasObviouslyBrokenEditArguments,
     recoverSimpleToolCalls,
     repairEditArguments,
     repairToolCallJsonKeys,
     toolsToPrompt
-} from '../src/api/routes.js';
+} from '../src/api/routes.ts';
 
 describe('tool call JSON repair', () => {
     test('repairs whitespace inserted into known argument keys', () => {
@@ -91,5 +92,22 @@ describe('tool call JSON repair', () => {
             name: 'read',
             arguments: { path: '/tmp/arena.html' }
         });
+    });
+
+    test('keeps a stable scope while a pi tool-loop appends messages', () => {
+        const initial = [
+            { role: 'system', content: 'coding agent' },
+            { role: 'user', content: 'build the feature' }
+        ];
+        const continued = [
+            ...initial,
+            { role: 'assistant', tool_calls: [{ function: { name: 'read' } }] },
+            { role: 'tool', content: 'file contents' },
+            { role: 'assistant', content: 'working' }
+        ];
+
+        expect(buildConversationScopeFromHistory(continued)).toBe(
+            buildConversationScopeFromHistory(initial)
+        );
     });
 });

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { logInfo, logError, logDebug } from '../logger/index.js';
+import { logInfo, logError, logDebug } from '../logger/index.ts';
 
 const DASHSCOPE_API_BASE = 'https://dashscope-intl.aliyuncs.com/api/v1';
 

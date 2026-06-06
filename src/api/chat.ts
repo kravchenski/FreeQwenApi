@@ -1,18 +1,18 @@
-import { getBrowserContext, getAuthenticationStatus, setAuthenticationStatus } from '../browser/browser.js';
-import { checkAuthentication, checkVerification } from '../browser/auth.js';
-import { shutdownBrowser, initBrowser } from '../browser/browser.js';
-import { saveAuthToken } from '../browser/session.js';
-import { getAvailableToken, markRateLimited, removeInvalidToken } from './tokenManager.js';
+import { getBrowserContext, getAuthenticationStatus, setAuthenticationStatus } from '../browser/browser.ts';
+import { checkAuthentication, checkVerification } from '../browser/auth.ts';
+import { shutdownBrowser, initBrowser } from '../browser/browser.ts';
+import { saveAuthToken } from '../browser/session.ts';
+import { getAvailableToken, markRateLimited, removeInvalidToken } from './tokenManager.ts';
 import fs from 'fs';
 import path from 'path';
-import { logInfo, logError, logWarn, logDebug, logRaw } from '../logger/index.js';
+import { logInfo, logError, logWarn, logDebug, logRaw } from '../logger/index.ts';
 import crypto from 'crypto';
 import {
     CHAT_API_URL, CREATE_CHAT_URL, CHAT_PAGE_URL, TASK_STATUS_URL,
     PAGE_TIMEOUT, RETRY_DELAY, PAGE_POOL_SIZE,
     DEFAULT_MODEL, MAX_RETRY_COUNT,
     TASK_POLL_MAX_ATTEMPTS, TASK_POLL_INTERVAL
-} from '../config.js';
+} from '../config.ts';
 
 const MODELS_FILE = path.resolve(process.cwd(), 'src', 'AvailableModels.txt');
 const AUTH_KEYS_FILE = path.resolve(process.cwd(), 'src', 'Authorization.txt');
@@ -707,10 +707,10 @@ async function handleApiError(response, tokenObj, message, model, chatId, parent
         authToken = null;
         browserTokenRateLimited = false;
         if (tokenObj?.id && tokenObj.id !== 'browser') {
-            const { markInvalid } = await import('./tokenManager.js');
+            const { markInvalid } = await import('./tokenManager.ts');
             markInvalid(tokenObj.id);
         }
-        const { hasValidTokens } = await import('./tokenManager.js');
+        const { hasValidTokens } = await import('./tokenManager.ts');
         if (hasValidTokens() && retryCount < MAX_RETRY_COUNT) {
             return sendMessage(message, model, chatId, parentId, files, null, null, null, chatType, size, waitForCompletion, retryCount + 1, onChunk);
         }
@@ -734,7 +734,7 @@ async function handleApiError(response, tokenObj, message, model, chatId, parent
         }
 
         authToken = null;
-        const { hasValidTokens } = await import('./tokenManager.js');
+        const { hasValidTokens } = await import('./tokenManager.ts');
         if (hasValidTokens() && retryCount < MAX_RETRY_COUNT) {
             return sendMessage(message, model, chatId, parentId, files, null, null, null, chatType, size, waitForCompletion, retryCount + 1, onChunk);
         }

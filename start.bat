@@ -24,6 +24,6 @@ echo.
 echo Запуск приложения...
 echo.
 
-bun run index.js
+bun run index.ts
 
 pause

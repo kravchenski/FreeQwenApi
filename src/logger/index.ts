@@ -2,7 +2,7 @@ import winston from 'winston';
 import morgan from 'morgan';
 import path from 'path';
 import fs from 'fs';
-import { LOG_LEVEL, LOG_MAX_SIZE, LOG_MAX_FILES, LOGS_DIR } from '../config.js';
+import { LOG_LEVEL, LOG_MAX_SIZE, LOG_MAX_FILES, LOGS_DIR } from '../config.ts';
 
 const LOG_DIR = path.resolve(process.cwd(), LOGS_DIR);
 if (!fs.existsSync(LOG_DIR)) {

@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 
-import { DEFAULT_MODEL, HOST, PORT } from '../src/config.js';
-import { getMappedModel } from '../src/api/modelMapping.js';
+import { DEFAULT_MODEL, HOST, PORT } from '../src/config.ts';
+import { getMappedModel } from '../src/api/modelMapping.ts';
 
 describe('Bun runtime compatibility', () => {
     test('loads ESM configuration', () => {

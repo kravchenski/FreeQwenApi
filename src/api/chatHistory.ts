@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { logInfo, logError, logDebug } from '../logger/index.js';
-import { SESSION_DIR, MAX_HISTORY_LENGTH } from '../config.js';
+import { logInfo, logError, logDebug } from '../logger/index.ts';
+import { SESSION_DIR, MAX_HISTORY_LENGTH } from '../config.ts';
 
 const HISTORY_DIR = path.resolve(process.cwd(), SESSION_DIR, 'history');
 

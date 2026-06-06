@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL } from '../config.js';
+import { DEFAULT_MODEL } from '../config.ts';
 
 const CANONICAL_MODELS = Object.freeze([
     "qwen3.7-max",

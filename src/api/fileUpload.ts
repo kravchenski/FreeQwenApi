@@ -1,10 +1,10 @@
-import { getBrowserContext } from '../browser/browser.js';
-import { logInfo, logError } from '../logger/index.js';
-import { getAuthToken, extractAuthToken, pagePool } from './chat.js';
-import { getAvailableToken } from './tokenManager.js';
+import { getBrowserContext } from '../browser/browser.ts';
+import { logInfo, logError } from '../logger/index.ts';
+import { getAuthToken, extractAuthToken, pagePool } from './chat.ts';
+import { getAvailableToken } from './tokenManager.ts';
 import fs from 'fs';
 import path from 'path';
-import { STS_TOKEN_API_URL, OSS_SDK_URL, UPLOADS_DIR } from '../config.js';
+import { STS_TOKEN_API_URL, OSS_SDK_URL, UPLOADS_DIR } from '../config.ts';
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'];
 const DOCUMENT_EXTENSIONS = ['.pdf', '.doc', '.docx', '.txt'];

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { logInfo, logError, logWarn } from '../logger/index.js';
-import { SESSION_DIR } from '../config.js';
+import { logInfo, logError, logWarn } from '../logger/index.ts';
+import { SESSION_DIR } from '../config.ts';
 
 const SESSION_PATH = path.resolve(process.cwd(), SESSION_DIR);
 const TOKEN_FILE = path.join(SESSION_PATH, 'auth_token.txt');

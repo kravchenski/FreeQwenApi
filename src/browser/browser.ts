@@ -1,16 +1,16 @@
 import puppeteer from 'puppeteer-extra';
 import StealthPlugin from 'puppeteer-extra-plugin-stealth';
-import { saveSession, saveAuthToken } from './session.js';
-import { startManualAuthentication } from './auth.js';
-import { clearPagePool, getAuthToken } from '../api/chat.js';
+import { saveSession, saveAuthToken } from './session.ts';
+import { startManualAuthentication } from './auth.ts';
+import { clearPagePool, getAuthToken } from '../api/chat.ts';
 import fs from 'fs';
 import path from 'path';
-import { logInfo, logError, logWarn, logDebug } from '../logger/index.js';
+import { logInfo, logError, logWarn, logDebug } from '../logger/index.ts';
 import {
     CHAT_PAGE_URL, NAVIGATION_TIMEOUT, RETRY_DELAY,
     VIEWPORT_WIDTH, VIEWPORT_HEIGHT, USER_AGENT,
     SESSION_DIR, ACCOUNTS_DIR
-} from '../config.js';
+} from '../config.ts';
 
 puppeteer.use(StealthPlugin());
 

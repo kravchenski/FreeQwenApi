@@ -1,12 +1,12 @@
 import crypto from 'crypto';
 
-import { getApiKeys } from '../api/chat.js';
+import { getApiKeys } from '../api/chat.ts';
 import {
     CORS_ALLOWED_ORIGINS,
     RATE_LIMIT_MAX_REQUESTS,
     RATE_LIMIT_WINDOW_MS
-} from '../config.js';
-import { logWarn } from '../logger/index.js';
+} from '../config.ts';
+import { logWarn } from '../logger/index.ts';
 
 const rateLimitBuckets = new Map();
 

@@ -1,14 +1,14 @@
 import fs from 'fs';
 import path from 'path';
 
-import { initBrowser, shutdownBrowser, getBrowserContext } from '../browser/browser.js';
-import { extractAuthToken } from '../api/chat.js';
-import { loadTokens, saveTokens, markValid, removeToken } from '../api/tokenManager.js';
-import { loadAuthToken } from '../browser/session.js';
-import { logInfo, logError, logWarn } from '../logger/index.js';
-import { prompt } from './prompt.js';
-import { formatForgetMeAiWatermark } from './branding.js';
-import { SESSION_DIR, ACCOUNTS_DIR } from '../config.js';
+import { initBrowser, shutdownBrowser, getBrowserContext } from '../browser/browser.ts';
+import { extractAuthToken } from '../api/chat.ts';
+import { loadTokens, saveTokens, markValid, removeToken } from '../api/tokenManager.ts';
+import { loadAuthToken } from '../browser/session.ts';
+import { logInfo, logError, logWarn } from '../logger/index.ts';
+import { prompt } from './prompt.ts';
+import { formatForgetMeAiWatermark } from './branding.ts';
+import { SESSION_DIR, ACCOUNTS_DIR } from '../config.ts';
 
 const ACCOUNTS_PATH = path.resolve(process.cwd(), SESSION_DIR, ACCOUNTS_DIR);
 

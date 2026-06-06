@@ -1,8 +1,8 @@
-import { saveSession } from './session.js';
-import { setAuthenticationStatus, getAuthenticationStatus, restartBrowserInHeadlessMode } from './browser.js';
-import { extractAuthToken } from '../api/chat.js';
-import { logInfo, logError, logWarn } from '../logger/index.js';
-import { CHAT_PAGE_URL, AUTH_SIGNIN_URL, PAGE_TIMEOUT, RETRY_DELAY } from '../config.js';
+import { saveSession } from './session.ts';
+import { setAuthenticationStatus, getAuthenticationStatus, restartBrowserInHeadlessMode } from './browser.ts';
+import { extractAuthToken } from '../api/chat.ts';
+import { logInfo, logError, logWarn } from '../logger/index.ts';
+import { CHAT_PAGE_URL, AUTH_SIGNIN_URL, PAGE_TIMEOUT, RETRY_DELAY } from '../config.ts';
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 

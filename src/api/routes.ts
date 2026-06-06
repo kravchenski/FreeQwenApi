@@ -1,19 +1,19 @@
 import express from 'express';
-import { sendMessage, getAllModels, createChatV2, pollQwenTaskStatus, extractMediaUrl, pagePool, extractAuthToken } from './chat.js';
-import { getAuthenticationStatus, getBrowserContext } from '../browser/browser.js';
-import { checkAuthentication } from '../browser/auth.js';
-import { logInfo, logError, logDebug } from '../logger/index.js';
-import { getMappedModel } from './modelMapping.js';
-import { getStsToken, uploadFileToQwen } from './fileUpload.js';
-import { loadHistory, saveHistory } from './chatHistory.js';
-import { generateImage, getAvailableImageModels, checkImageApiAvailability } from './imageGeneration.js';
-import { MAX_FILE_SIZE, UPLOADS_DIR, DEFAULT_MODEL, STREAMING_CHUNK_DELAY, ALLOW_UNSCOPED_SESSION_CHAT_RESTORE } from '../config.js';
+import { sendMessage, getAllModels, createChatV2, pollQwenTaskStatus, extractMediaUrl, pagePool, extractAuthToken } from './chat.ts';
+import { getAuthenticationStatus, getBrowserContext } from '../browser/browser.ts';
+import { checkAuthentication } from '../browser/auth.ts';
+import { logInfo, logError, logDebug } from '../logger/index.ts';
+import { getMappedModel } from './modelMapping.ts';
+import { getStsToken, uploadFileToQwen } from './fileUpload.ts';
+import { loadHistory, saveHistory } from './chatHistory.ts';
+import { generateImage, getAvailableImageModels, checkImageApiAvailability } from './imageGeneration.ts';
+import { MAX_FILE_SIZE, UPLOADS_DIR, DEFAULT_MODEL, STREAMING_CHUNK_DELAY, ALLOW_UNSCOPED_SESSION_CHAT_RESTORE } from '../config.ts';
 import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
-import { listTokens, markInvalid, markRateLimited, markValid } from './tokenManager.js';
-import { FORGETMEAI_WATERMARK } from '../utils/branding.js';
+import { listTokens, markInvalid, markRateLimited, markValid } from './tokenManager.ts';
+import { FORGETMEAI_WATERMARK } from '../utils/branding.ts';
 
 function generateChatIdFromHistory(messages) {
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -43,6 +43,11 @@ function generateChatIdFromHistory(messages) {
         .substring(0, 16);
 
     return `chat_${hash}`;
+}
+
+export function buildConversationScopeFromHistory(messages) {
+    const chatId = generateChatIdFromHistory(messages);
+    return chatId ? `history:${chatId}` : null;
 }
 
 function normalizeIdValue(value) {
@@ -179,7 +184,7 @@ async function resolveQwenChatId(effectiveChatId, mappedModel) {
 
     return qwenChatId;
 }
-import { testToken } from './chat.js';
+import { testToken } from './chat.ts';
 
 function isOpenWebUiMetaRequest(messages) {
     if (!Array.isArray(messages) || messages.length === 0) return false;
@@ -1005,7 +1010,9 @@ router.post('/chat/completions', async (req, res) => {
         const explicitChatId = normalizeIdValue(chatId) || snakeCaseChatId;
         const explicitParentId = extractParentHint(req);
         const conversationHint = extractConversationHint(req);
-        const conversationScope = conversationHint ? `conversation:${conversationHint}` : null;
+        const conversationScope = conversationHint
+            ? `conversation:${conversationHint}`
+            : buildConversationScopeFromHistory(messages);
         const forceNewChat = shouldForceNewChat(req);
         logInfo(`Получен OpenAI-совместимый запрос${stream ? ' (stream)' : ''}`);
 
@@ -1038,21 +1045,21 @@ router.post('/chat/completions', async (req, res) => {
                     effectiveChatId = buildInternalChatIdFromHint(conversationHint);
                     logInfo(`Using client conversation-id key: ${effectiveChatId}`);
                 }
-            } else if (ALLOW_UNSCOPED_SESSION_CHAT_RESTORE) {
-                const savedSession = forceNewChat ? null : getSavedChatId(req);
+            } else if (conversationScope || ALLOW_UNSCOPED_SESSION_CHAT_RESTORE) {
+                const savedSession = forceNewChat ? null : getSavedChatId(req, conversationScope);
                 if (savedSession?.chatId) {
                     effectiveChatId = savedSession.chatId;
                     if (!effectiveParentId && savedSession.parentId) {
                         effectiveParentId = savedSession.parentId;
                     }
-                    logInfo(`Restored chatId from session: ${effectiveChatId}`);
+                        logInfo(`Restored history-scoped chatId from session: ${effectiveChatId}`);
                 }
 
                 if (!effectiveChatId) {
                     const generatedId = generateChatIdFromHistory(messages);
                     if (generatedId) {
                         effectiveChatId = generatedId;
-                        logInfo(`Created new chatId for session: ${effectiveChatId}`);
+                        logInfo(`Created history-scoped chatId for session: ${effectiveChatId}`);
                     }
                 }
             } else {
@@ -1315,7 +1322,9 @@ router.post('/v1/chat/completions', async (req, res) => {
         const explicitChatId = normalizeIdValue(chatId) || snakeCaseChatId;
         const explicitParentId = extractParentHint(req);
         const conversationHint = extractConversationHint(req);
-        const conversationScope = conversationHint ? `conversation:${conversationHint}` : null;
+        const conversationScope = conversationHint
+            ? `conversation:${conversationHint}`
+            : buildConversationScopeFromHistory(messages);
         const forceNewChat = shouldForceNewChat(req);
 
         logInfo(`Получен OpenAI v1 запрос${stream ? ' (stream)' : ''}`);
@@ -1349,21 +1358,21 @@ router.post('/v1/chat/completions', async (req, res) => {
                     effectiveChatId = buildInternalChatIdFromHint(conversationHint);
                     logInfo(`Using client conversation-id key: ${effectiveChatId}`);
                 }
-            } else if (ALLOW_UNSCOPED_SESSION_CHAT_RESTORE) {
-                const savedSession = forceNewChat ? null : getSavedChatId(req);
+            } else if (conversationScope || ALLOW_UNSCOPED_SESSION_CHAT_RESTORE) {
+                const savedSession = forceNewChat ? null : getSavedChatId(req, conversationScope);
                 if (savedSession?.chatId) {
                     effectiveChatId = savedSession.chatId;
                     if (!effectiveParentId && savedSession.parentId) {
                         effectiveParentId = savedSession.parentId;
                     }
-                    logInfo(`Restored chatId from session: ${effectiveChatId}`);
+                    logInfo(`Restored history-scoped chatId from session: ${effectiveChatId}`);
                 }
 
                 if (!effectiveChatId) {
                     const generatedId = generateChatIdFromHistory(messages);
                     if (generatedId) {
                         effectiveChatId = generatedId;
-                        logInfo(`Created new chatId for session: ${effectiveChatId}`);
+                        logInfo(`Created history-scoped chatId for session: ${effectiveChatId}`);
                     }
                 }
             } else {

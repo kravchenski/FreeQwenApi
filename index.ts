@@ -1,22 +1,22 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 
-import { initBrowser, shutdownBrowser } from './src/browser/browser.js';
-import apiRoutes from './src/api/routes.js';
-import { getAvailableModelsFromFile, getApiKeys } from './src/api/chat.js';
-import { loadTokens } from './src/api/tokenManager.js';
-import { addAccountInteractive } from './src/utils/accountSetup.js';
-import { logHttpRequest, logInfo, logError, logWarn } from './src/logger/index.js';
-import { prompt } from './src/utils/prompt.js';
-import { FORGETMEAI_WATERMARK } from './src/utils/branding.js';
-import { PORT, HOST, REQUEST_BODY_LIMIT } from './src/config.js';
+import { initBrowser, shutdownBrowser } from './src/browser/browser.ts';
+import apiRoutes from './src/api/routes.ts';
+import { getAvailableModelsFromFile, getApiKeys } from './src/api/chat.ts';
+import { loadTokens } from './src/api/tokenManager.ts';
+import { addAccountInteractive } from './src/utils/accountSetup.ts';
+import { logHttpRequest, logInfo, logError, logWarn } from './src/logger/index.ts';
+import { prompt } from './src/utils/prompt.ts';
+import { FORGETMEAI_WATERMARK } from './src/utils/branding.ts';
+import { PORT, HOST, REQUEST_BODY_LIMIT } from './src/config.ts';
 import {
     apiKeyAuth,
     corsMiddleware,
     normalizeApiVersion,
     rateLimitMiddleware,
     securityHeaders
-} from './src/middleware/security.js';
+} from './src/middleware/security.ts';
 
 const app = express();
 
@@ -143,7 +143,7 @@ async function startServer() {
             if (choice === '1') {
                 await addAccountInteractive();
             } else if (choice === '2') {
-                const { reloginAccountInteractive } = await import('./src/utils/accountSetup.js');
+                const { reloginAccountInteractive } = await import('./src/utils/accountSetup.ts');
                 await reloginAccountInteractive();
             } else if (choice === '3') {
                 const hasValidToken = tokens.some(t => {
@@ -157,7 +157,7 @@ async function startServer() {
                 }
                 break;
             } else if (choice === '4') {
-                const { removeAccountInteractive } = await import('./src/utils/accountSetup.js');
+                const { removeAccountInteractive } = await import('./src/utils/accountSetup.ts');
                 await removeAccountInteractive();
             }
         }

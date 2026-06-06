@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { logError } from '../logger/index.js';
-import { SESSION_DIR, ACCOUNTS_DIR } from '../config.js';
+import { logError } from '../logger/index.ts';
+import { SESSION_DIR, ACCOUNTS_DIR } from '../config.ts';
 
 const SESSION_PATH = path.resolve(process.cwd(), SESSION_DIR);
 const ACCOUNTS_PATH = path.join(SESSION_PATH, ACCOUNTS_DIR);

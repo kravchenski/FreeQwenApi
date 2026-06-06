@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { isValidChatId } from '../src/api/chatHistory.js';
+import { isValidChatId } from '../src/api/chatHistory.ts';
 
 describe('security boundaries', () => {
     test('rejects path traversal chat ids', () => {

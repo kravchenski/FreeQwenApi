@@ -363,7 +363,7 @@ Create a local `.env` or export environment variables before starting the proxy.
 | `DASHSCOPE_API_KEY` | unset | Optional legacy image-generation provider |
 
 Advanced endpoint, timeout, logging, and polling options are defined in
-[`src/config.js`](src/config.js).
+[`src/config.ts`](src/config.ts).
 
 ## Docker
 

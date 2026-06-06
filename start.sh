@@ -90,7 +90,7 @@ fi
 
 if [[ "$RUN_AUTH" == true ]]; then
   has_valid_account=false
-  if bun -e 'const { hasValidTokens } = await import("./src/api/tokenManager.js"); process.exit(hasValidTokens() ? 0 : 1);'; then
+  if bun -e 'const { hasValidTokens } = await import("./src/api/tokenManager.ts"); process.exit(hasValidTokens() ? 0 : 1);'; then
     has_valid_account=true
   fi
 
@@ -104,7 +104,7 @@ if [[ "$RUN_AUTH" == true ]]; then
     log "Opening Qwen account authentication"
     bun run auth -- --add
 
-    if ! bun -e 'const { hasValidTokens } = await import("./src/api/tokenManager.js"); process.exit(hasValidTokens() ? 0 : 1);'; then
+    if ! bun -e 'const { hasValidTokens } = await import("./src/api/tokenManager.ts"); process.exit(hasValidTokens() ? 0 : 1);'; then
       printf 'Authentication finished without an active Qwen account.\n' >&2
       exit 1
     fi

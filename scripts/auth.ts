@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import { loadTokens } from '../src/api/tokenManager.js';
-import { addAccountInteractive, reloginAccountInteractive, removeAccountInteractive } from '../src/utils/accountSetup.js';
-import { formatForgetMeAiWatermark } from '../src/utils/branding.js';
-import { prompt } from '../src/utils/prompt.js';
+import { loadTokens } from '../src/api/tokenManager.ts';
+import { addAccountInteractive, reloginAccountInteractive, removeAccountInteractive } from '../src/utils/accountSetup.ts';
+import { formatForgetMeAiWatermark } from '../src/utils/branding.ts';
+import { prompt } from '../src/utils/prompt.ts';
 
 function printDivider() {
     console.log('======================================================');
