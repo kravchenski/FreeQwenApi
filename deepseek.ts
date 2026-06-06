@@ -38,7 +38,12 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
         const { response, sessionId } = await deepSeekCompletion({ messages: upstreamMessages, model, conversationId });
         const id = `chatcmpl-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
         const created = Math.floor(Date.now() / 1000);
-        const state = { phase: 'content' as const, fragment: undefined as string | undefined };
+        const state = {
+            phase: 'content' as const,
+            fragment: undefined as string | undefined,
+            contentSnapshot: '',
+            thinkingSnapshot: ''
+        };
         const reader = response.body?.getReader();
         if (!reader) throw new Error('DeepSeek returned an empty response body');
         const decoder = new TextDecoder();

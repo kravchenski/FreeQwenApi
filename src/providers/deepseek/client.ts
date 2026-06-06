@@ -119,13 +119,34 @@ export async function deepSeekCompletion(options: {
     return { response, sessionId, key, accountId: account.id };
 }
 
-export function parseDeepSeekEvent(line: string, state: { phase: 'content' | 'thinking'; fragment?: string }) {
+export function parseDeepSeekEvent(line: string, state: {
+    phase: 'content' | 'thinking';
+    fragment?: string;
+    contentSnapshot?: string;
+    thinkingSnapshot?: string;
+}) {
     if (!line.startsWith('data:')) return null;
     const data = line.slice(5).trim();
     if (!data || data === '[DONE]') return { done: true };
     const event = JSON.parse(data);
     const path = event.p;
     const value = event.v;
+    const snapshot = value?.response;
+    if (!path && snapshot && typeof snapshot === 'object') {
+        const snapshotContent = typeof snapshot.content === 'string' ? snapshot.content : '';
+        const snapshotThinking = typeof snapshot.thinking_content === 'string' ? snapshot.thinking_content : '';
+        if (snapshotThinking && snapshotThinking !== state.thinkingSnapshot) {
+            const previous = state.thinkingSnapshot || '';
+            state.thinkingSnapshot = snapshotThinking;
+            return { reasoning: snapshotThinking.startsWith(previous) ? snapshotThinking.slice(previous.length) : snapshotThinking };
+        }
+        if (snapshotContent && snapshotContent !== state.contentSnapshot) {
+            const previous = state.contentSnapshot || '';
+            state.contentSnapshot = snapshotContent;
+            return { content: snapshotContent.startsWith(previous) ? snapshotContent.slice(previous.length) : snapshotContent };
+        }
+        return null;
+    }
     if (path === 'response/status' || path?.endsWith('/status')) {
         return value === 'FINISHED' ? { done: true } : null;
     }
@@ -136,5 +157,10 @@ export function parseDeepSeekEvent(line: string, state: { phase: 'content' | 'th
         state.phase = state.fragment === 'THINK' ? 'thinking' : 'content';
     }
     if (typeof value !== 'string' || path === 'response/fragments/-1/type') return null;
-    return state.phase === 'thinking' ? { reasoning: value } : { content: value };
+    if (state.phase === 'thinking') {
+        state.thinkingSnapshot = `${state.thinkingSnapshot || ''}${value}`;
+        return { reasoning: value };
+    }
+    state.contentSnapshot = `${state.contentSnapshot || ''}${value}`;
+    return { content: value };
 }

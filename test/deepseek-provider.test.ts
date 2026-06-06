@@ -35,6 +35,15 @@ describe('DeepSeek web provider', () => {
             .toEqual({ done: true });
     });
 
+    test('preserves initial content from DeepSeek snapshot events', () => {
+        const state = { phase: 'content' as const, contentSnapshot: '' };
+
+        expect(parseDeepSeekEvent('data: {"v":{"response":{"content":"При"}}}', state))
+            .toEqual({ content: 'При' });
+        expect(parseDeepSeekEvent('data: {"v":"вет!"}', state))
+            .toEqual({ content: 'вет!' });
+    });
+
     test('loads the bundled DeepSeek PoW solver', async () => {
         expect(await validateDeepSeekPowSolver()).toBeTrue();
     });
