@@ -42,13 +42,29 @@ The repository also includes a separate OpenAI-compatible proxy for
 `https://chat.deepseek.com/`. It uses DeepSeek's native web chat sessions and
 solves the required Proof-of-Work challenge before each completion.
 
-Set the Bearer token from an authenticated DeepSeek web session and start the
-proxy:
+Start the proxy and use the account menu, matching the Qwen startup flow:
 
 ```bash
-export DEEPSEEK_TOKEN='your-deepseek-web-token'
 bun run start:deepseek
+# or install, validate, and start:
+./start-deepseek.sh
 ```
+
+Choose `1` to add an account. Chromium opens `chat.deepseek.com`; sign in,
+return to the terminal, and press Enter. Cookies and the Bearer token are saved
+under `session/deepseek/`. The menu also supports relogin and account removal.
+
+Manage DeepSeek accounts without starting the proxy:
+
+```bash
+bun run auth:deepseek -- --list
+bun run auth:deepseek -- --add
+bun run auth:deepseek -- --relogin
+bun run auth:deepseek -- --remove
+```
+
+For non-interactive startup, set `SKIP_ACCOUNT_MENU=true`. `DEEPSEEK_TOKEN`
+remains available as an optional fallback for container deployments.
 
 The DeepSeek proxy listens on `http://127.0.0.1:3265/api` by default. Install
 the included pi configuration and select the provider:
