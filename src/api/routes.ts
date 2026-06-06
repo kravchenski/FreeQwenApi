@@ -478,7 +478,7 @@ GENERAL TOOL RULES:
 - For codebase tasks such as implement, fix, refactor, review, test, or inspect, you MUST call read/ls/find/grep/bash or another suitable workspace tool before making claims or giving a final answer.
 - Never claim that a file exists, was deleted, changed, tested, or listed unless that fact came from a tool result in the current conversation.
 - Do not print a shell command as a suggestion when you can call the corresponding tool yourself.
-- Never simulate tools with XML, markdown, or prose such as <bash>...</bash>, <read>...</read>, or fenced shell blocks. Emit a real JSON tool call instead.
+- Never simulate tools with XML, markdown, or prose such as <bash>...</bash>, <read>...</read>, [调用 read] [{"path":"..."}], or fenced shell blocks. Emit a real JSON tool call instead.
 - When the user asks you to implement, fix, or refactor, continue through inspection, edits, and verification. Do not stop to ask which approach they prefer unless required information cannot be discovered.
 - When an action, lookup, file read/write, command, web search, calculation, or verification is needed, CALL A TOOL instead of describing the action.
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
@@ -645,6 +645,24 @@ export function recoverXmlStyleToolCall(text) {
     return { name, arguments: { path: body } };
 }
 
+export function recoverChineseStyleToolCall(text) {
+    const marker = text.match(/\[调用\s+([A-Za-z0-9_-]+)\]\s*/);
+    if (!marker || marker.index === undefined) return null;
+    const jsonStart = marker.index + marker[0].length;
+    const decoder = new TextDecoder();
+    const bytes = new TextEncoder().encode(text.slice(jsonStart));
+    for (let end = 1; end <= bytes.length; end++) {
+        try {
+            const parsed = JSON.parse(decoder.decode(bytes.slice(0, end)));
+            const args = Array.isArray(parsed) ? parsed[0] : parsed;
+            if (!args || typeof args !== 'object') return null;
+            return { name: marker[1], arguments: args };
+        } catch {
+        }
+    }
+    return null;
+}
+
 export function conversationalShellText(name, rawArgs) {
     if (name !== 'bash' && name !== 'terminal') return false;
     let args;
@@ -737,6 +755,15 @@ export function parseToolCallJson(content) {
             id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
             type: 'function',
             function: { name: recoveredXml.name, arguments: JSON.stringify(recoveredXml.arguments) },
+            index: 0
+        }];
+    }
+    const recoveredChinese = recoverChineseStyleToolCall(content);
+    if (recoveredChinese) {
+        return [{
+            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+            type: 'function',
+            function: { name: recoveredChinese.name, arguments: JSON.stringify(recoveredChinese.arguments) },
             index: 0
         }];
     }

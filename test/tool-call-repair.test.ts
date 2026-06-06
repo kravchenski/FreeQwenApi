@@ -6,6 +6,7 @@ import {
     hasObviouslyBrokenEditArguments,
     recoverSimpleToolCalls,
     recoverBrokenBashToolCall,
+    recoverChineseStyleToolCall,
     recoverXmlStyleToolCall,
     parseToolCallJson,
     repairEditArguments,
@@ -148,5 +149,15 @@ describe('tool call JSON repair', () => {
             arguments: { path: 'main.py' }
         });
         expect(parseToolCallJson('<bash>\nfind . -name "*.ts"\n</bash>')?.[0].function.name).toBe('bash');
+    });
+
+    test('converts simulated Chinese-style tools into real tool calls', () => {
+        const content = 'Сначала посмотрю файл.\n[调用 read] [{"path": "/tmp/arena.html"}]\n[调用 bash] [{"command": "ls"}]';
+
+        expect(recoverChineseStyleToolCall(content)).toEqual({
+            name: 'read',
+            arguments: { path: '/tmp/arena.html' }
+        });
+        expect(parseToolCallJson(content)?.[0].function.name).toBe('read');
     });
 });
