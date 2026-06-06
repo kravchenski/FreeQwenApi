@@ -474,6 +474,7 @@ ${toolNames}
 
 ${skillRules}
 GENERAL TOOL RULES:
+- For greetings, thanks, casual conversation, explanations, and questions answer directly. Never call bash/terminal merely to print or echo a reply.
 - When an action, lookup, file read/write, command, web search, calculation, or verification is needed, CALL A TOOL instead of describing the action.
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
 - Never invent tool results. After tool results appear in the conversation, use them to continue.
@@ -597,6 +598,27 @@ export function recoverSimpleToolCalls(text) {
     return calls;
 }
 
+export function recoverBrokenBashToolCall(text) {
+    const normalized = repairToolCallJsonKeys(text);
+    const match = normalized.match(/"name"\s*:\s*"(bash|terminal)"[\s\S]*?"command"\s*:\s*"([\s\S]*)"\s*\}\s*\}\s*\]\s*\}?$/);
+    if (!match) return null;
+    const command = match[2].replace(/"\s*"\s*$/, '"');
+    return { name: match[1], arguments: { command } };
+}
+
+export function conversationalShellText(name, rawArgs) {
+    if (name !== 'bash' && name !== 'terminal') return false;
+    let args;
+    try {
+        args = typeof rawArgs === 'string' ? JSON.parse(rawArgs) : rawArgs;
+    } catch {
+        return null;
+    }
+    if (typeof args?.command !== 'string') return null;
+    const match = args.command.match(/^\s*(?:echo|printf(?:\s+%s)?)\s+["']?([\s\S]*?)["']?\s*$/);
+    return match ? match[1] : null;
+}
+
 export function parseToolCallJson(content) {
     if (typeof content !== 'string') return null;
     let text = content.trim();
@@ -633,6 +655,7 @@ export function parseToolCallJson(content) {
                 const normalizedArgs = name === 'edit' ? repairEditArguments(rawArgs) : rawArgs;
                 const args = typeof normalizedArgs === 'string' ? normalizedArgs : JSON.stringify(normalizedArgs || {});
                 if (!name) return null;
+                if (conversationalShellText(name, args)) return null;
                 return {
                     id: call.id || `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
                     type: 'function',
@@ -653,6 +676,15 @@ export function parseToolCallJson(content) {
             function: { name: call.name, arguments: JSON.stringify(call.arguments) },
             index
         }));
+    }
+    const recoveredBash = recoverBrokenBashToolCall(text);
+    if (recoveredBash && !conversationalShellText(recoveredBash.name, recoveredBash.arguments)) {
+        return [{
+            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+            type: 'function',
+            function: { name: recoveredBash.name, arguments: JSON.stringify(recoveredBash.arguments) },
+            index: 0
+        }];
     }
     return null;
 }

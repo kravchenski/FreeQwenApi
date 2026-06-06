@@ -4,6 +4,8 @@ import {
     buildConversationScopeFromHistory,
     hasObviouslyBrokenEditArguments,
     recoverSimpleToolCalls,
+    recoverBrokenBashToolCall,
+    parseToolCallJson,
     repairEditArguments,
     repairToolCallJsonKeys,
     toolsToPrompt
@@ -109,5 +111,15 @@ describe('tool call JSON repair', () => {
         expect(buildConversationScopeFromHistory(continued)).toBe(
             buildConversationScopeFromHistory(initial)
         );
+    });
+
+    test('recovers broken bash quoting but rejects conversational echo calls', () => {
+        const broken = '{"tool_calls":[{"name":"bash","arguments":{"command":"echo "Привет!""}}]}';
+
+        expect(recoverBrokenBashToolCall(broken)).toEqual({
+            name: 'bash',
+            arguments: { command: 'echo "Привет!"' }
+        });
+        expect(parseToolCallJson(broken)).toBeNull();
     });
 });

@@ -3,7 +3,7 @@ import bodyParser from 'body-parser';
 import crypto from 'crypto';
 
 import { deepSeekCompletion, parseDeepSeekEvent } from './src/providers/deepseek/client.ts';
-import { parseToolCallJson, toolsToPrompt } from './src/api/routes.ts';
+import { conversationalShellText, parseToolCallJson, recoverBrokenBashToolCall, toolsToPrompt } from './src/api/routes.ts';
 import { hasValidDeepSeekAccounts } from './src/providers/deepseek/accounts.ts';
 import { runDeepSeekAccountMenu } from './src/providers/deepseek/auth.ts';
 
@@ -72,7 +72,12 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
             if (done) break;
         }
 
-        const toolCalls = captureToolCalls ? parseToolCallJson(content) : null;
+        const recoveredShell = captureToolCalls ? recoverBrokenBashToolCall(content) : null;
+        const conversationalText = recoveredShell
+            ? conversationalShellText(recoveredShell.name, recoveredShell.arguments)
+            : null;
+        if (conversationalText) content = conversationalText;
+        const toolCalls = captureToolCalls && !conversationalText ? parseToolCallJson(content) : null;
         if (stream && toolCalls?.length) {
             for (const call of toolCalls) {
                 res.write(`data: ${JSON.stringify({
