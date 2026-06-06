@@ -35,3 +35,28 @@ must never contain inserted whitespace or line breaks:
 ```json
 {"tool_calls":[{"name":"write","arguments":{"path":"/absolute/path/main.ts","content":"console.log(\"ready\");\n"}}]}
 ```
+
+## DeepSeek web
+
+The repository also includes a separate OpenAI-compatible proxy for
+`https://chat.deepseek.com/`. It uses DeepSeek's native web chat sessions and
+solves the required Proof-of-Work challenge before each completion.
+
+Set the Bearer token from an authenticated DeepSeek web session and start the
+proxy:
+
+```bash
+export DEEPSEEK_TOKEN='your-deepseek-web-token'
+bun run start:deepseek
+```
+
+The DeepSeek proxy listens on `http://127.0.0.1:3265/api` by default. Install
+the included pi configuration and select the provider:
+
+```bash
+cp examples/pi-agent/deepseek-models.json ~/.pi/agent/models.json
+pi --provider freedeepseek --model deepseek-default
+```
+
+Use `deepseek-reasoner` for thinking mode. Pi tool loops are mapped to one
+native DeepSeek chat session using a stable conversation fingerprint.
