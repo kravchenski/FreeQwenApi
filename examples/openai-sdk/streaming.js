@@ -1,5 +1,3 @@
-// Пример использования OpenAI SDK с прокси для Qwen AI в потоковом режиме
-// Установка: bun add openai
 
 import OpenAI from 'openai';
 
@@ -35,5 +33,4 @@ async function streamFromQwen() {
     }
 }
 
-// Запуск
 streamFromQwen();

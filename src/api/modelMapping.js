@@ -229,26 +229,17 @@ const buildModelMapping = () => {
 
 export const MODEL_MAPPING = buildModelMapping();
 
-/**
- * Получить соответствующую доступную модель
- * @param {string} requestedModel - Запрошенная модель
- * @param {string} defaultModel - Модель по умолчанию
- * @returns {string} - Доступная модель
- */
 export function getMappedModel(requestedModel, defaultModel = DEFAULT_MODEL) {
     if (!requestedModel) return defaultModel;
 
-    // Проверяем точное соответствие в словаре
     if (MODEL_MAPPING[requestedModel]) {
         return MODEL_MAPPING[requestedModel];
     }
 
-    // Проверяем, является ли запрошенная модель уже доступной
     const availableModels = Object.values(MODEL_MAPPING);
     if (availableModels.includes(requestedModel)) {
         return requestedModel;
     }
 
-    // Возвращаем модель по умолчанию, если соответствие не найдено
     return defaultModel;
-} 
+}

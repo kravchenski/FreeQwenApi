@@ -1,5 +1,3 @@
-// Пример использования streaming API через /api/chat
-// Запуск: node examples/streaming-test.js
 
 async function testStreaming() {
     console.log('🧪 Тестирование НАСТОЯЩЕГО стриминга через /api/chat\n');
@@ -71,7 +69,6 @@ async function testStreaming() {
                     fullContent += content;
                 }
             } catch (e) {
-                // Игнорируем ошибки парсинга
             }
         }
     }

@@ -1,6 +1,3 @@
-// Пример прямого запроса к API прокси Qwen с использованием axios
-// Установка: bun add axios
-// Для запуска примера: node axios-example.js
 
 import axios from 'axios';
 
@@ -8,7 +5,6 @@ async function axiosExample() {
     try {
         console.log('Отправка запроса через axios к API Qwen...\n');
 
-        // Пример с форматом messages, совместимым с OpenAI
         const response = await axios.post('http://localhost:3264/api/chat', {
             messages: [
                 { role: 'system', content: 'Ты эксперт по программированию на JavaScript.' },
@@ -21,15 +17,12 @@ async function axiosExample() {
         console.log(response.data.choices[0].message.content);
         console.log('\nЗапрос успешно выполнен.');
 
-        // Вывод дополнительной информации
         console.log('\nИнформация о запросе:');
         console.log(`ID чата: ${response.data.chatId}`);
         console.log(`Модель: ${response.data.model}`);
 
-        // Сохраняем ID чата для следующего примера
         const chatId = response.data.chatId;
 
-        // Продолжаем диалог в том же чате
         console.log('\n\nОтправка второго сообщения в тот же чат...\n');
 
         const followUpResponse = await axios.post('http://localhost:3264/api/chat', {
@@ -49,5 +42,4 @@ async function axiosExample() {
     }
 }
 
-// Запуск
 axiosExample();

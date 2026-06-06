@@ -1,12 +1,9 @@
-# PowerShell script to test streaming API
-
 $url = "http://localhost:3264/api/chat/completions"
 
 Write-Host "╔════════════════════════════════════════╗"
 Write-Host "║  FreeQwenApi - Streaming Test          ║"
 Write-Host "╚════════════════════════════════════════╝`n"
 
-# Test 1: Non-streaming request
 Write-Host "📝 Test 1: Non-streaming request"
 Write-Host "Message: 'Привет, я Дима'" -ForegroundColor Cyan
 
@@ -41,7 +38,6 @@ try {
 Write-Host ""
 Start-Sleep -Seconds 2
 
-# Test 2: Streaming request with follow-up question
 Write-Host "📝 Test 2: Streaming request (follow-up question)"
 Write-Host "Message: 'Как меня зовут?'" -ForegroundColor Cyan
 
@@ -76,7 +72,6 @@ try {
                     $streamContent += $json.choices[0].delta.content
                 }
             } catch {
-                # Ignore JSON parse errors
             }
         }
     }

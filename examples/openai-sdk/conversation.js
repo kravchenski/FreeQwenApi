@@ -1,18 +1,15 @@
-// Пример использования OpenAI SDK для диалога с несколькими сообщениями
-// Установка: bun add openai
 
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
     baseURL: 'http://localhost:3264/api',
-    apiKey: 'dummy-key', // Ключ не используется, но требуется для SDK
+    apiKey: 'dummy-key',
 });
 
 async function conversationExample() {
     try {
         console.log('Начинаем диалог с Qwen AI...\n');
 
-        // Первое сообщение пользователя
         console.log('Пользователь: Привет! Расскажи о квантовой физике простыми словами.');
 
         let completion = await openai.chat.completions.create({
@@ -25,7 +22,6 @@ async function conversationExample() {
         const assistantResponse1 = completion.choices[0].message.content;
         console.log('\nQwen:', assistantResponse1);
 
-        // Второе сообщение пользователя, включающее историю беседы
         console.log('\nПользователь: А как это связано с теорией относительности?');
 
         completion = await openai.chat.completions.create({
@@ -40,7 +36,6 @@ async function conversationExample() {
         const assistantResponse2 = completion.choices[0].message.content;
         console.log('\nQwen:', assistantResponse2);
 
-        // Третье сообщение пользователя
         console.log('\nПользователь: Спасибо! Кто из ученых внес наибольший вклад в развитие этих теорий?');
 
         completion = await openai.chat.completions.create({
@@ -62,5 +57,4 @@ async function conversationExample() {
     }
 }
 
-// Запуск
 conversationExample();

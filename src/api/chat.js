@@ -28,7 +28,6 @@ let browserTokenRateLimited = false;
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// ─── Page helpers ────────────────────────────────────────────────────────────
 
 async function getPage(context) {
     if (context && typeof context.newPage === 'function') {
@@ -36,9 +35,6 @@ async function getPage(context) {
     }
 
     if (context && typeof context.goto === 'function') {
-        // Если передана Puppeteer Page, не переиспользуем её как рабочую:
-        // создаём отдельную вкладку из того же браузера, чтобы избежать гонок
-        // и случайного закрытия базовой страницы.
         if (typeof context.browser === 'function') {
             try {
                 const browser = context.browser();
@@ -82,7 +78,7 @@ export const pagePool = {
             } catch (e) {
                 logWarn(`Страница из пула протухла (${e.message?.substring(0, 60)}), создаём новую`);
                 if (page !== baseContext) {
-                    try { await page.close(); } catch { /* already dead */ }
+                    try { await page.close(); } catch { }
                 }
             }
         }
@@ -112,7 +108,6 @@ export const pagePool = {
 
         const baseContext = getBrowserContext();
         if (page === baseContext) {
-            // Базовую страницу держим отдельно от пула.
             return;
         }
 
@@ -135,7 +130,6 @@ export const pagePool = {
     }
 };
 
-// ─── Task polling ────────────────────────────────────────────────────────────
 
 export async function pollTaskStatus(taskId, page, token, maxAttempts = TASK_POLL_MAX_ATTEMPTS, interval = TASK_POLL_INTERVAL) {
     logInfo(`Начинаем опрос статуса задачи: ${taskId}`);
@@ -193,7 +187,6 @@ export async function pollTaskStatus(taskId, page, token, maxAttempts = TASK_POL
     return { success: false, status: 'timeout', error: 'Превышен таймаут polling задачи' };
 }
 
-// ─── Token extraction ────────────────────────────────────────────────────────
 
 export async function extractAuthToken(context, forceRefresh = false) {
     if (authToken && !forceRefresh) return authToken;
@@ -226,7 +219,6 @@ export async function extractAuthToken(context, forceRefresh = false) {
     }
 }
 
-// ─── Models & keys from files ────────────────────────────────────────────────
 
 export function getAvailableModelsFromFile() {
     try {
@@ -292,7 +284,6 @@ export function getApiKeys() {
     return authKeys;
 }
 
-// ─── sendMessage — helper functions ──────────────────────────────────────────
 
 function validateAndPrepareMessage(message) {
     if (message === null || message === undefined) {
@@ -420,7 +411,6 @@ function parseNonSseCompletionBody(body) {
             return { success: true, isTask: false, data: parsed };
         }
     } catch {
-        // Ignore parse errors here and return a generic failure below.
     }
 
     return { success: false, error: 'Unexpected non-SSE 200 response', errorBody: body };
@@ -526,7 +516,6 @@ async function executeApiRequestWithNodeStreaming(apiUrl, payload, token, onChun
 
                     if (chunk.usage) usage = chunk.usage;
                 } catch {
-                    // Ignore broken chunks, keep reading stream.
                 }
             }
         }
@@ -615,7 +604,6 @@ async function executeApiRequest(page, apiUrl, payload, token, onChunk = null) {
                             Boolean(topLevelCode) ||
                             Boolean(nestedCode);
 
-                        // API иногда возвращает JSON с success=false и code при HTTP 200.
                         if (hasStructuredError) {
                             const isRateLimited = topLevelCode === 'RateLimited' || nestedCode === 'RateLimited';
                             return {
@@ -624,11 +612,10 @@ async function executeApiRequest(page, apiUrl, payload, token, onChunk = null) {
                                 errorBody: body
                             };
                         }
-                        // Валидный JSON-ответ completion (иногда Qwen возвращает так)
                         if (parsed.choices || parsed.id || (parsed.success === true && parsed.data)) {
                             return { success: true, isTask: false, data: parsed };
                         }
-                    } catch { /* not JSON, treat as unexpected */ }
+                    } catch { }
                     return { success: false, error: 'Unexpected non-SSE 200 response', errorBody: body };
                 }
 
@@ -673,7 +660,7 @@ async function executeApiRequest(page, apiUrl, payload, token, onChunk = null) {
                                 if (delta && delta.status === 'finished') finished = true;
                             }
                             if (chunk.usage) usage = chunk.usage;
-                        } catch { /* ignore parse errors for individual chunks */ }
+                        } catch { }
                     }
                 }
 
@@ -740,7 +727,7 @@ async function handleApiError(response, tokenObj, message, model, chatId, parent
         try {
             const rateInfo = JSON.parse(response.errorBody);
             hours = Number(rateInfo.num) || 24;
-        } catch { /* errorBody might not be valid JSON */ }
+        } catch { }
 
         if (tokenObj?.id === 'browser') {
             browserTokenRateLimited = true;
@@ -761,7 +748,6 @@ async function handleApiError(response, tokenObj, message, model, chatId, parent
     return { error: response.error || response.statusText, details: response.errorBody || 'Нет дополнительных деталей', chatId };
 }
 
-// ─── Main public API ─────────────────────────────────────────────────────────
 
 export async function sendMessage(message, model = DEFAULT_MODEL, chatId = null, parentId = null, files = null, tools = null, toolChoice = null, systemMessage = null, chatType = 't2t', size = null, waitForCompletion = true, retryCount = 0, onChunk = null) {
     if (!availableModels) availableModels = getAvailableModelsFromFile();
@@ -895,12 +881,11 @@ export async function sendMessage(message, model = DEFAULT_MODEL, chatId = null,
             response.data.chatId = chatId;
             response.data.parentId = response.data.response_id;
             response.data.id = response.data.id || 'chatcmpl-' + Date.now();
-            
-            // Fallback: если поток чанков не был отдан, отправляем контент единым куском.
+
             if (typeof onChunk === 'function' && response.data.choices?.[0]?.message?.content && !response.hasStreamedChunks) {
                 onChunk(response.data.choices[0].message.content);
             }
-            
+
             return response.data;
         }
 
@@ -915,7 +900,6 @@ export async function sendMessage(message, model = DEFAULT_MODEL, chatId = null,
     }
 }
 
-// ─── Task response helpers ───────────────────────────────────────────────────
 
 function extractTaskId(data) {
     const firstMsg = data.data?.messages?.[0];
@@ -1003,7 +987,6 @@ export function getAuthToken() {
     return authToken;
 }
 
-// ─── createChatV2 ────────────────────────────────────────────────────────────
 
 export async function createChatV2(model = DEFAULT_MODEL, title = 'Новый чат', retryCount = 0, chatType = 't2t') {
     const browserContext = getBrowserContext();
@@ -1072,7 +1055,6 @@ export async function createChatV2(model = DEFAULT_MODEL, title = 'Новый ч
     }
 }
 
-// ─── testToken ───────────────────────────────────────────────────────────────
 
 export async function testToken(token) {
     const browserContext = getBrowserContext();

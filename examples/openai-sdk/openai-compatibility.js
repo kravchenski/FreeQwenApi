@@ -1,19 +1,15 @@
-// Пример, демонстрирующий совместимость с OpenAI API
-// Установка: bun add openai
 
 import OpenAI from 'openai';
 
-// Настройка клиента OpenAI с использованием нашего прокси как точки доступа
 const openai = new OpenAI({
     baseURL: 'http://localhost:3264/api',
-    apiKey: 'dummy-key', // Ключ не используется, но требуется для SDK
+    apiKey: 'dummy-key',
 });
 
 async function openaiCompatibilityExample() {
     try {
         console.log('Демонстрация совместимости с OpenAI API\n');
 
-        // 1. Стандартный запрос в формате OpenAI
         console.log('1. Стандартный запрос в формате OpenAI...');
 
         const completion = await openai.chat.completions.create({
@@ -28,7 +24,6 @@ async function openaiCompatibilityExample() {
         console.log('Ответ:');
         console.log(completion.choices[0].message.content);
 
-        // 2. Потоковый запрос в формате OpenAI
         console.log('\n2. Потоковый запрос в формате OpenAI...');
 
         console.log('Ответ (потоковый режим):');
@@ -49,7 +44,6 @@ async function openaiCompatibilityExample() {
         }
         console.log('\n');
 
-        // 3. Демонстрация структуры ответа в формате OpenAI
         console.log('\n3. Структура ответа в формате OpenAI:');
 
         const responseDemo = await openai.chat.completions.create({
@@ -57,7 +51,6 @@ async function openaiCompatibilityExample() {
             messages: [{ role: 'user', content: 'Привет!' }],
         });
 
-        // Выводим структуру ответа (без содержимого сообщения)
         const { choices, ...responseWithoutChoices } = responseDemo;
         console.log(JSON.stringify({
             ...responseWithoutChoices,
@@ -74,5 +67,4 @@ async function openaiCompatibilityExample() {
     }
 }
 
-// Запуск
 openaiCompatibilityExample();

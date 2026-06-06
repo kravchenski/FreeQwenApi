@@ -104,7 +104,6 @@ export async function initBrowser(visibleMode = true, skipManualRestart = false)
         if (visibleMode) {
             await startManualAuthenticationPuppeteer(page, skipManualRestart);
         }
-        // loadSessionPuppeteer removed — was dead code (always returned false)
 
         return true;
     } catch (error) {

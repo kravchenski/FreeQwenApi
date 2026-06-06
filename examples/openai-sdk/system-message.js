@@ -1,11 +1,9 @@
-// Пример использования OpenAI SDK с системным сообщением
-// Установка: bun add openai
 
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
     baseURL: 'http://localhost:3264/api',
-    apiKey: 'dummy-key', // Ключ не используется, но требуется для SDK
+    apiKey: 'dummy-key',
 });
 
 async function systemMessageExample() {
@@ -35,5 +33,4 @@ async function systemMessageExample() {
     }
 }
 
-// Запуск
 systemMessageExample();
