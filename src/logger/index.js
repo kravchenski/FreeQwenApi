@@ -2,12 +2,9 @@ import winston from 'winston';
 import morgan from 'morgan';
 import path from 'path';
 import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { LOG_LEVEL, LOG_MAX_SIZE, LOG_MAX_FILES, LOGS_DIR } from '../config.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const LOG_DIR = path.resolve(__dirname, '..', '..', LOGS_DIR);
+const LOG_DIR = path.resolve(process.cwd(), LOGS_DIR);
 if (!fs.existsSync(LOG_DIR)) {
     fs.mkdirSync(LOG_DIR, { recursive: true });
 }

@@ -5,7 +5,6 @@ import { saveAuthToken } from '../browser/session.js';
 import { getAvailableToken, markRateLimited, removeInvalidToken } from './tokenManager.js';
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { logInfo, logError, logWarn, logDebug, logRaw } from '../logger/index.js';
 import crypto from 'crypto';
 import {
@@ -15,11 +14,8 @@ import {
     TASK_POLL_MAX_ATTEMPTS, TASK_POLL_INTERVAL
 } from '../config.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const MODELS_FILE = path.join(__dirname, '..', 'AvailableModels.txt');
-const AUTH_KEYS_FILE = path.join(__dirname, '..', 'Authorization.txt');
+const MODELS_FILE = path.resolve(process.cwd(), 'src', 'AvailableModels.txt');
+const AUTH_KEYS_FILE = path.resolve(process.cwd(), 'src', 'Authorization.txt');
 
 let authToken = null;
 let availableModels = null;

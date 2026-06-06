@@ -371,7 +371,9 @@ Authenticate locally first because the production container has no interactive G
 
 ```bash
 bun run auth
+mkdir -p session logs uploads
 docker compose up --build -d
+docker compose logs -f qwen-proxy
 ```
 
 The Compose configuration persists:
@@ -379,6 +381,32 @@ The Compose configuration persists:
 - `./session` for Qwen authentication
 - `./logs` for application logs
 - `./uploads` for temporary uploads
+
+The Docker image uses a multi-stage build:
+
+- the builder installs only production Bun dependencies;
+- the runtime contains only the application, production dependencies, and
+  Debian `chromium-headless-shell`;
+- tests, examples, documentation, build caches, and the full desktop Chromium
+  package are excluded.
+
+The verified local `linux/amd64` image is approximately `740 MB`, down from
+approximately `1.03 GB`. Most remaining space belongs to Chromium and its
+required browser runtime libraries. Exact sizes vary by architecture and
+package updates.
+
+Inspect the built image:
+
+```bash
+docker image ls qwen-api-proxy:latest
+docker history qwen-api-proxy:latest
+docker run --rm --entrypoint /usr/bin/chromium-headless-shell \
+  qwen-api-proxy:latest --version
+```
+
+If the container exits with `Не найдено ни одного аккаунта`, run
+`bun run auth` on the host and verify that `session/tokens.json` exists before
+starting Compose.
 
 ### Published Image
 
@@ -394,6 +422,8 @@ Run it with an existing session directory:
 docker run --rm -p 3264:3264 \
   -e SKIP_ACCOUNT_MENU=true \
   -v "$PWD/session:/app/session" \
+  -v "$PWD/logs:/app/logs" \
+  -v "$PWD/uploads:/app/uploads" \
   ghcr.io/kravchenski/freeqwenapi:latest
 ```
 

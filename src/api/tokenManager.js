@@ -1,12 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { logError } from '../logger/index.js';
 import { SESSION_DIR, ACCOUNTS_DIR } from '../config.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const SESSION_PATH = path.resolve(__dirname, '..', '..', SESSION_DIR);
+const SESSION_PATH = path.resolve(process.cwd(), SESSION_DIR);
 const ACCOUNTS_PATH = path.join(SESSION_PATH, ACCOUNTS_DIR);
 const TOKENS_FILE = path.join(SESSION_PATH, 'tokens.json');
 

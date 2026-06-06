@@ -1,6 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 
 import { initBrowser, shutdownBrowser, getBrowserContext } from '../browser/browser.js';
 import { extractAuthToken } from '../api/chat.js';
@@ -11,10 +10,10 @@ import { prompt } from './prompt.js';
 import { formatForgetMeAiWatermark } from './branding.js';
 import { SESSION_DIR, ACCOUNTS_DIR } from '../config.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const ACCOUNTS_PATH = path.resolve(process.cwd(), SESSION_DIR, ACCOUNTS_DIR);
 
 function ensureAccountDir(id) {
-    const accountDir = path.resolve(__dirname, '..', '..', SESSION_DIR, ACCOUNTS_DIR, id);
+    const accountDir = path.resolve(ACCOUNTS_PATH, id);
     if (!fs.existsSync(accountDir)) fs.mkdirSync(accountDir, { recursive: true });
     return accountDir;
 }
@@ -50,7 +49,7 @@ export async function addAccountInteractive() {
 
     const id = 'acc_' + Date.now();
     ensureAccountDir(id);
-    fs.writeFileSync(path.resolve(__dirname, '..', '..', SESSION_DIR, ACCOUNTS_DIR, id, 'token.txt'), token, 'utf8');
+    fs.writeFileSync(path.resolve(ACCOUNTS_PATH, id, 'token.txt'), token, 'utf8');
 
     const list = loadTokens();
     list.push({ id, token, resetAt: null });
@@ -104,7 +103,7 @@ export async function reloginAccountInteractive() {
     if (!token) { logError('Не удалось извлечь токен.'); return; }
 
     markValid(account.id, token);
-    fs.writeFileSync(path.resolve(__dirname, '..', '..', SESSION_DIR, ACCOUNTS_DIR, account.id, 'token.txt'), token, 'utf8');
+    fs.writeFileSync(path.resolve(ACCOUNTS_PATH, account.id, 'token.txt'), token, 'utf8');
     logInfo(`Токен обновлён для ${account.id}`);
 }
 
@@ -132,7 +131,7 @@ export async function removeAccountInteractive() {
     if (confirm.toLowerCase() !== 'y') return;
 
     removeToken(acc.id);
-    const dir = path.resolve(__dirname, '..', '..', SESSION_DIR, ACCOUNTS_DIR, acc.id);
+    const dir = path.resolve(ACCOUNTS_PATH, acc.id);
     if (fs.existsSync(dir)) fs.rmSync(dir, { recursive: true, force: true });
 
     logInfo(`Аккаунт ${acc.id} удалён.`);

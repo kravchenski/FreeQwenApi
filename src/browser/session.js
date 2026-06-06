@@ -1,12 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { logInfo, logError, logWarn } from '../logger/index.js';
 import { SESSION_DIR } from '../config.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const SESSION_PATH = path.resolve(__dirname, '..', '..', SESSION_DIR);
+const SESSION_PATH = path.resolve(process.cwd(), SESSION_DIR);
 const TOKEN_FILE = path.join(SESSION_PATH, 'auth_token.txt');
 
 function getSessionFilePath(accountId, fileName) {
