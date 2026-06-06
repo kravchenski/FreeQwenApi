@@ -54,7 +54,11 @@ Choose `1` to register or add an account. Chromium opens the DeepSeek sign-in
 page; complete registration or sign in, wait until the chat interface appears,
 return to the terminal, and press Enter. The proxy captures the authenticated
 request token and verifies the `ds_session_id` cookie before saving the account
-under `session/deepseek/`. The menu also supports relogin and account removal.
+under `session/deepseek/`. Authentication uses a persistent normal-browser
+profile at `session/deepseek/browser-profile`, so Google login can be reused
+between attempts. Set `DEEPSEEK_CHROME_PATH` to an installed Google Chrome
+binary when Google rejects the system Chromium. The menu also supports relogin
+and account removal.
 
 Manage DeepSeek accounts without starting the proxy:
 
