@@ -4,6 +4,8 @@ import crypto from 'crypto';
 
 import { deepSeekCompletion, parseDeepSeekEvent } from './src/providers/deepseek/client.ts';
 import { parseToolCallJson, toolsToPrompt } from './src/api/routes.ts';
+import { hasValidDeepSeekAccounts } from './src/providers/deepseek/accounts.ts';
+import { runDeepSeekAccountMenu } from './src/providers/deepseek/auth.ts';
 
 const app = express();
 const port = Number(process.env.DEEPSEEK_PORT || 3265);
@@ -116,6 +118,33 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
     }
 });
 
-app.listen(port, host, () => {
-    console.log(`DeepSeek web proxy listening on http://${host}:${port}/api`);
+function enabled(value: string | undefined) {
+    return ['1', 'true', 'yes', 'on'].includes((value || '').trim().toLowerCase());
+}
+
+async function start() {
+    console.log(`
+======================================================
+   FREE DEEPSEEK WEB API
+   Browser-backed proxy for https://chat.deepseek.com/
+======================================================
+`);
+    const skipMenu = enabled(process.env.SKIP_ACCOUNT_MENU) || enabled(process.env.NON_INTERACTIVE);
+    if (skipMenu) {
+        if (!hasValidDeepSeekAccounts() && !process.env.DEEPSEEK_TOKEN) {
+            throw new Error('Нет активных аккаунтов DeepSeek. Запустите bun run auth:deepseek -- --add');
+        }
+    } else {
+        await runDeepSeekAccountMenu();
+    }
+
+    app.listen(port, host, () => {
+        console.log(`DeepSeek web proxy listening on http://${host}:${port}/api`);
+        console.log('Models: deepseek-default, deepseek-reasoner, deepseek-expert, deepseek-search');
+    });
+}
+
+start().catch(error => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
 });

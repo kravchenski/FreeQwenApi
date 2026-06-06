@@ -28,6 +28,7 @@
         "example:file-upload": "bun run examples/file-upload/upload-example.js",
         "example:streaming-test": "bun run examples/streaming-test.js",
         "auth": "bun run scripts/auth.ts",
+        "auth:deepseek": "bun run scripts/deepseek-auth.ts",
         "models:sync": "bun run scripts/sync_models.ts",
         "smoke": "bun run scripts/smoke_test.ts"
     },

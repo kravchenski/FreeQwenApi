@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test';
 
 import { conversationKey, messagesToPrompt, parseDeepSeekEvent } from '../src/providers/deepseek/client.ts';
 import { validateDeepSeekPowSolver } from '../src/providers/deepseek/pow.ts';
+import { hasValidDeepSeekAccounts } from '../src/providers/deepseek/accounts.ts';
 
 describe('DeepSeek web provider', () => {
     test('keeps a stable conversation key during a pi tool loop', () => {
@@ -34,5 +35,9 @@ describe('DeepSeek web provider', () => {
 
     test('loads the bundled DeepSeek PoW solver', async () => {
         expect(await validateDeepSeekPowSolver()).toBeTrue();
+    });
+
+    test('can inspect DeepSeek account availability without environment setup', () => {
+        expect(typeof hasValidDeepSeekAccounts()).toBe('boolean');
     });
 });

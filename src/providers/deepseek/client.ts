@@ -1,16 +1,31 @@
 import crypto from 'crypto';
 
 import { solveDeepSeekPow } from './pow.ts';
+import { getAvailableDeepSeekAccount, markDeepSeekAccountInvalid, type DeepSeekAccount } from './accounts.ts';
 
 const BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://chat.deepseek.com';
-const token = process.env.DEEPSEEK_TOKEN || '';
 const sessions = new Map<string, string>();
 
-function headers(extra: Record<string, string> = {}) {
-    if (!token) throw new Error('DEEPSEEK_TOKEN is not configured');
+function envAccount(): DeepSeekAccount | null {
+    const token = process.env.DEEPSEEK_TOKEN;
+    return token ? { id: 'env', token, cookies: [] } : null;
+}
+
+function getAccount() {
+    const account = getAvailableDeepSeekAccount() || envAccount();
+    if (!account) throw new Error('Нет активных аккаунтов DeepSeek. Добавьте аккаунт через меню.');
+    return account;
+}
+
+function cookieHeader(account: DeepSeekAccount) {
+    return account.cookies.map(cookie => `${cookie.name}=${cookie.value}`).join('; ');
+}
+
+function headers(account: DeepSeekAccount, extra: Record<string, string> = {}) {
     return {
-        authorization: `Bearer ${token}`,
+        authorization: `Bearer ${account.token}`,
         'content-type': 'application/json',
+        ...(account.cookies.length ? { cookie: cookieHeader(account) } : {}),
         origin: BASE_URL,
         referer: `${BASE_URL}/`,
         ...extra
@@ -24,12 +39,13 @@ export function conversationKey(messages: Array<Record<string, any>>) {
     return crypto.createHash('sha256').update(content).digest('hex').slice(0, 24);
 }
 
-async function createSession() {
+async function createSession(account: DeepSeekAccount) {
     const response = await fetch(`${BASE_URL}/api/v0/chat_session/create`, {
         method: 'POST',
-        headers: headers(),
+        headers: headers(account),
         body: '{}'
     });
+    if (response.status === 401 && account.id !== 'env') markDeepSeekAccountInvalid(account.id);
     if (!response.ok) throw new Error(`DeepSeek session create failed: ${response.status} ${await response.text()}`);
     const body = await response.json() as any;
     const id = body?.data?.biz_data?.chat_session?.id || body?.data?.biz_data?.id;
@@ -37,20 +53,22 @@ async function createSession() {
     return id as string;
 }
 
-async function getSession(key: string) {
-    const existing = sessions.get(key);
+async function getSession(account: DeepSeekAccount, key: string) {
+    const scopedKey = `${account.id}:${key}`;
+    const existing = sessions.get(scopedKey);
     if (existing) return existing;
-    const created = await createSession();
-    sessions.set(key, created);
+    const created = await createSession(account);
+    sessions.set(scopedKey, created);
     return created;
 }
 
-async function getPow(sessionId: string) {
+async function getPow(account: DeepSeekAccount, sessionId: string) {
     const response = await fetch(`${BASE_URL}/api/v0/chat/create_pow_challenge`, {
         method: 'POST',
-        headers: headers({ referer: `${BASE_URL}/a/chat/s/${sessionId}` }),
+        headers: headers(account, { referer: `${BASE_URL}/a/chat/s/${sessionId}` }),
         body: JSON.stringify({ target_path: '/api/v0/chat/completion' })
     });
+    if (response.status === 401 && account.id !== 'env') markDeepSeekAccountInvalid(account.id);
     if (!response.ok) throw new Error(`DeepSeek PoW challenge failed: ${response.status} ${await response.text()}`);
     const body = await response.json() as any;
     const challenge = body?.data?.biz_data?.challenge;
@@ -74,13 +92,14 @@ export async function deepSeekCompletion(options: {
     model?: string;
     conversationId?: string;
 }) {
+    const account = getAccount();
     const key = options.conversationId || conversationKey(options.messages);
-    const sessionId = await getSession(key);
-    const pow = await getPow(sessionId);
+    const sessionId = await getSession(account, key);
+    const pow = await getPow(account, sessionId);
     const model = options.model || 'deepseek-default';
     const response = await fetch(`${BASE_URL}/api/v0/chat/completion`, {
         method: 'POST',
-        headers: headers({
+        headers: headers(account, {
             referer: `${BASE_URL}/a/chat/s/${sessionId}`,
             'x-ds-pow-response': pow,
             ...(model.includes('reasoner') || model.includes('r1') ? { 'x-thinking-enabled': 'true' } : {})
@@ -95,8 +114,9 @@ export async function deepSeekCompletion(options: {
             model_type: model.includes('expert') ? 'expert' : 'default'
         })
     });
+    if (response.status === 401 && account.id !== 'env') markDeepSeekAccountInvalid(account.id);
     if (!response.ok) throw new Error(`DeepSeek completion failed: ${response.status} ${await response.text()}`);
-    return { response, sessionId, key };
+    return { response, sessionId, key, accountId: account.id };
 }
 
 export function parseDeepSeekEvent(line: string, state: { phase: 'content' | 'thinking'; fragment?: string }) {
