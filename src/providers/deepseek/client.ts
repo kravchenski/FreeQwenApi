@@ -1,29 +1,14 @@
 import crypto from 'crypto';
-import fs from 'node:fs';
 import path from 'node:path';
 
 import { solveDeepSeekPow } from './pow.ts';
 import { getAvailableDeepSeekAccount, markDeepSeekAccountInvalid, type DeepSeekAccount } from './accounts.ts';
+import { PersistentStringMap } from '../../utils/persistentMap.ts';
 
 const BASE_URL = process.env.DEEPSEEK_BASE_URL || 'https://chat.deepseek.com';
 const SESSION_MAP_FILE = process.env.DEEPSEEK_SESSION_MAP_FILE || path.join(process.cwd(), 'session', 'deepseek', 'chat-sessions.json');
 
-function loadSessions() {
-    try {
-        return new Map<string, string>(Object.entries(JSON.parse(fs.readFileSync(SESSION_MAP_FILE, 'utf8'))));
-    } catch {
-        return new Map<string, string>();
-    }
-}
-
-const sessions = loadSessions();
-
-function saveSessions() {
-    fs.mkdirSync(path.dirname(SESSION_MAP_FILE), { recursive: true });
-    const temporary = `${SESSION_MAP_FILE}.tmp`;
-    fs.writeFileSync(temporary, `${JSON.stringify(Object.fromEntries(sessions), null, 2)}\n`);
-    fs.renameSync(temporary, SESSION_MAP_FILE);
-}
+const sessions = new PersistentStringMap(SESSION_MAP_FILE);
 
 function envAccount(): DeepSeekAccount | null {
     const token = process.env.DEEPSEEK_TOKEN;
@@ -78,7 +63,6 @@ async function getSession(account: DeepSeekAccount, key: string) {
     if (existing) return existing;
     const created = await createSession(account);
     sessions.set(scopedKey, created);
-    saveSessions();
     return created;
 }
 

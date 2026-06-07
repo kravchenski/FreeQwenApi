@@ -11,6 +11,7 @@
   "include": [
     "index.ts",
     "deepseek.ts",
+    "gateway.ts",
     "src/**/*.ts",
     "scripts/**/*.ts",
     "test/**/*.ts"
