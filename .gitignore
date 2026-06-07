@@ -49,7 +49,7 @@ venv/
 .idea/
 .vscode/
 *.swp
-*.swo 
+*.swo
 
 Authorization.txt
 **/Authorization.txt
