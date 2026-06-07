@@ -17,6 +17,7 @@ bun install
 bun run start:full
 bun run start:deepseek:full
 bun run start:full -- --check-only
+bun run setup:agents -- --dry-run
 bun run setup:pi
 ```
 

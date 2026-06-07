@@ -12,6 +12,10 @@ pi --provider freeai --model qwen3-coder-plus
 Use `/model` inside Pi to switch between every configured Qwen and DeepSeek
 model. Re-run `bun run setup:pi` after synchronizing new Qwen models.
 
+To configure Pi together with OpenCode, Continue, Hermes, Aider, Cline, Codex,
+and Claude Code, use `bun run setup:agents`. See
+[`docs/AGENT_INTEGRATIONS.md`](../../docs/AGENT_INTEGRATIONS.md).
+
 ## Reliable file rewrites
 
 When asking pi to replace a complete file, tell it to use its `write` tool with

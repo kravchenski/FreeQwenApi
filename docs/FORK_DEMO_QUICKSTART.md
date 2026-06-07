@@ -74,51 +74,53 @@ curl http://localhost:3264/api/chat/completions \
   }'
 ```
 
-## 6. Пример провайдера для Hermes Agent
+## 6. Установка для AI-агентов
+
+Сначала можно безопасно посмотреть план изменений:
+
+```bash
+bun run setup:agents -- --dry-run
+bun run setup:agents
+```
+
+Команда настраивает Pi Agent, OpenCode, Continue и Hermes, создаёт отдельные
+профили для Aider и Cline, а также LiteLLM-мост для Codex и Claude Code.
+
+## 7. Пример провайдера для Hermes Agent
 
 ```yaml
 custom_providers:
-  - name: qwen-free
-    base_url: http://localhost:3264/api
-    model: qwen3.7-max
+  - name: freeai
+    base_url: http://127.0.0.1:3263/api
     api_key: dummy-key
+    models:
+      qwen3-coder-plus:
+        context_length: 131072
+      deepseek-default:
+        context_length: 131072
 ```
 
 Запуск:
 
 ```bash
-hermes chat --provider custom:qwen-free --model qwen3.7-max
+hermes chat --provider custom:freeai --model qwen3-coder-plus
 ```
 
-## 7. Claude Code через мост LiteLLM
+## 8. Codex и Claude Code через мост LiteLLM
 
-Claude Code ожидает Anthropic Messages API, а этот прокси отдаёт OpenAI Chat Completions. Используйте LiteLLM как мост:
-
-```yaml
-model_list:
-  - model_name: qwen3.7-max
-    litellm_params:
-      model: openai/qwen3.7-max
-      api_base: http://localhost:3264/api
-      api_key: dummy-key
-
-general_settings:
-  master_key: ***
-```
-
-Запустите LiteLLM:
+Codex ожидает OpenAI Responses API, Claude Code ожидает Anthropic Messages API,
+а этот прокси отдаёт OpenAI Chat Completions. Используйте сгенерированный
+LiteLLM-конфиг как мост:
 
 ```bash
-litellm --config qwen_litellm.yaml --host 127.0.0.1 --port 4000
+litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
 ```
 
-Запустите Claude Code:
+Запустите Codex или Claude Code:
 
 ```bash
-export ANTHROPIC_BASE_URL="http://127.0.0.1:4000"
-export ANTHROPIC_AUTH_TOKEN="***"
-export CLAUDE_CODE_ENABLE_GATEWAY_MODEL_DISCOVERY=1
-claude --model qwen3.7-max
+FREEAI_API_KEY=dummy-key codex -p freeai -m qwen3-coder-plus
+claude --settings ~/.claude/freeai-settings.json --model qwen3-coder-plus
 ```
 
 ## Важное уточнение

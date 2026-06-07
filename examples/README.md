@@ -139,4 +139,13 @@ python examples/python-direct/httpx_streaming.py
 
 ## Дополнительная информация
 
-Подробная документация API доступна в README.md основного проекта. 
+Готовые конфигурации для Hermes и LiteLLM находятся в `examples/hermes/` и
+`examples/litellm/`. Для автоматической настройки Pi Agent, OpenCode, Continue,
+Hermes, Aider, Cline, Codex и Claude Code используйте:
+
+```bash
+bun run setup:agents -- --dry-run
+bun run setup:agents
+```
+
+Подробная документация API доступна в README.md основного проекта.

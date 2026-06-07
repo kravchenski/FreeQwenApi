@@ -10,7 +10,7 @@
 [![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun&logoColor=000)](https://bun.sh)
 [![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)](#api-reference)
 
-[Quick start](#quick-start) · [DeepSeek](#deepseek-web) · [pi agent](#pi-agent) · [Open WebUI](#open-webui) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
+[Quick start](#quick-start) · [DeepSeek](#deepseek-web) · [AI agents](#ai-agent-setup) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
 
 </div>
 
@@ -19,8 +19,9 @@ FreeQwenApi is an unofficial, browser-backed proxy for
 It preserves authenticated browser sessions and exposes local APIs compatible
 with OpenAI Chat Completions.
 
-Use it to connect Qwen Chat to **pi agent**, OpenAI SDKs, Open WebUI, LiteLLM,
-Hermes Agent, custom scripts, and other OpenAI-compatible clients.
+Use it to connect Qwen Chat and DeepSeek Web to **Pi Agent**, OpenCode,
+Continue, Hermes Agent, Aider, Cline, Codex, Claude Code, Open WebUI, OpenAI
+SDKs, and other compatible clients.
 
 > [!IMPORTANT]
 > This project is not an official Alibaba Cloud, Qwen, or DeepSeek API, and it
@@ -220,7 +221,29 @@ DeepSeek presets:
 | `deepseek-expert` | Expert model route |
 | `deepseek-search` | Web-search-enabled route |
 
-## pi Agent
+## AI Agent Setup
+
+Configure the supported agents with one safe, cross-platform command:
+
+```bash
+bun run setup:agents -- --dry-run
+bun run setup:agents
+```
+
+The installer merges Pi Agent, OpenCode, Continue, and Hermes configurations,
+creates standalone Aider and Cline settings, and generates LiteLLM bridge
+profiles for Codex and Claude Code. Existing files receive a
+`.freeqwenapi.bak` backup before the first change.
+
+```bash
+bun run setup:agents -- --agent pi,opencode,hermes
+bun run setup:agents -- --help
+```
+
+See [`docs/AGENT_INTEGRATIONS.md`](docs/AGENT_INTEGRATIONS.md) for the support
+matrix, generated paths, and launch commands.
+
+### Pi Agent
 
 FreeQwenApi exposes Qwen and DeepSeek through one `freeai` provider. Pi can
 switch between all available models with `/model` while keeping its local
@@ -257,27 +280,31 @@ See [`docs/OPENWEBUI_SETUP.md`](docs/OPENWEBUI_SETUP.md) for the complete setup.
 
 ```yaml
 custom_providers:
-  - name: qwen-free
-    base_url: http://127.0.0.1:3264/api
-    model: qwen3.7-max
+  - name: freeai
+    base_url: http://127.0.0.1:3263/api
     api_key: dummy-key
+    models:
+      qwen3-coder-plus:
+        context_length: 131072
+      deepseek-default:
+        context_length: 131072
 ```
 
 ### LiteLLM
 
 ```yaml
 model_list:
-  - model_name: qwen3.7-max
+  - model_name: qwen3-coder-plus
     litellm_params:
-      model: openai/qwen3.7-max
-      api_base: http://127.0.0.1:3264/api
+      model: openai/qwen3-coder-plus
+      api_base: http://127.0.0.1:3263/api
       api_key: dummy-key
 ```
 
 Ready-made configurations:
 
 - [`examples/hermes/config-snippet.yaml`](examples/hermes/config-snippet.yaml)
-- [`examples/litellm/qwen_litellm.yaml`](examples/litellm/qwen_litellm.yaml)
+- [`examples/litellm/freeai_litellm.yaml`](examples/litellm/freeai_litellm.yaml)
 
 ## Models
 
@@ -529,6 +556,7 @@ Useful commands:
 | `bun run dev:deepseek` | Start the DeepSeek proxy with Bun watch mode |
 | `bun run auth:deepseek` | Manage DeepSeek accounts |
 | `bun run start:gateway` | Start the unified Qwen + DeepSeek gateway |
+| `bun run setup:agents` | Configure popular AI agents and bridge profiles |
 | `bun run setup:pi` | Synchronize all models into Pi Agent |
 | `bun run models:sync` | Refresh Qwen model metadata |
 | `bun run smoke` | Test a running authenticated proxy |
