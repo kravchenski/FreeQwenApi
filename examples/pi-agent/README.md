@@ -1,18 +1,16 @@
 # pi agent
 
-FreeQwenApi already exposes the OpenAI Chat Completions contract used by pi,
-including streaming and tool calls. The included `models.json` disables OpenAI
-features that the browser-backed proxy does not implement.
+FreeQwenApi exposes Qwen and DeepSeek through one OpenAI-compatible gateway,
+including streaming, tool calls, and persistent remote chat mappings.
 
 ```bash
-mkdir -p ~/.pi/agent
-cp examples/pi-agent/models.json ~/.pi/agent/models.json
-export FREEQWEN_API_KEY=dummy-key
-pi --provider freeqwen --model qwen3-coder-plus
+bun run setup:pi
+docker compose up -d
+pi --provider freeai --model qwen3-coder-plus
 ```
 
-When `src/Authorization.txt` contains a real API key, use that value for
-`FREEQWEN_API_KEY`. If the proxy runs on another host, change `baseUrl`.
+Use `/model` inside Pi to switch between every configured Qwen and DeepSeek
+model. Re-run `bun run setup:pi` after synchronizing new Qwen models.
 
 ## Reliable file rewrites
 
@@ -72,13 +70,13 @@ bun run auth:deepseek -- --remove
 For non-interactive startup, set `SKIP_ACCOUNT_MENU=true`. `DEEPSEEK_TOKEN`
 remains available as an optional fallback for container deployments.
 
-The DeepSeek proxy listens on `http://127.0.0.1:3265/api` by default. Install
-the included pi configuration and select the provider:
+The DeepSeek proxy listens on `http://127.0.0.1:3265/api` internally. Pi should
+normally use the unified gateway:
 
 ```bash
-cp examples/pi-agent/deepseek-models.json ~/.pi/agent/models.json
-pi --provider freedeepseek --model deepseek-default
+pi --provider freeai --model deepseek-default
 ```
 
-Use `deepseek-reasoner` for thinking mode. Pi tool loops are mapped to one
-native DeepSeek chat session using a stable conversation fingerprint.
+Use `deepseek-reasoner` for thinking mode. Pi sessions are mapped to stable
+native provider chats, and DeepSeek mappings persist under
+`session/deepseek/chat-sessions.json`.

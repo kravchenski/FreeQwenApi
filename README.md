@@ -45,11 +45,13 @@ Hermes Agent, custom scripts, and other OpenAI-compatible clients.
 ```text
 OpenAI-compatible client
          |
-         +--> Qwen proxy     http://127.0.0.1:3264/api
+         +--> Unified gateway http://127.0.0.1:3263/api
+         |      |
+         |      +--> Qwen proxy     http://127.0.0.1:3264/api
          |      |
          |      +--> Qwen Chat web API
          |
-         +--> DeepSeek proxy http://127.0.0.1:3265/api
+         +------> DeepSeek proxy http://127.0.0.1:3265/api
                 |
                 +--> DeepSeek Web API + PoW
 ```
@@ -215,38 +217,20 @@ DeepSeek presets:
 
 ## pi Agent
 
-FreeQwenApi includes a ready-to-use custom provider for
-[pi](https://github.com/badlogic/pi-mono). It enables streaming and agent tool
-calls while disabling OpenAI fields unsupported by the browser-backed proxy.
+FreeQwenApi exposes Qwen and DeepSeek through one `freeai` provider. Pi can
+switch between all available models with `/model` while keeping its local
+session and each provider's native remote chat stable.
 
 ```bash
-mkdir -p ~/.pi/agent
-cp examples/pi-agent/models.json ~/.pi/agent/models.json
-
-export FREEQWEN_API_KEY=dummy-key
-pi --provider freeqwen --model qwen3-coder-plus
+bun run setup:pi
+docker compose up -d
+pi --provider freeai --model qwen3-coder-plus
 ```
 
-Available presets:
-
-| Model | Recommended use |
-| --- | --- |
-| `qwen3-coder-plus` | Coding agent and tool-heavy tasks |
-| `qwen3.7-max` | General-purpose agent |
-| `qwen3.7-plus` | Faster general chat |
-
-See [`examples/pi-agent/README.md`](examples/pi-agent/README.md) for configuration
-details.
-
-For DeepSeek, keep the DeepSeek proxy running and install its Pi configuration:
-
-```bash
-cp examples/pi-agent/deepseek-models.json ~/.pi/agent/models.json
-pi --provider freedeepseek --model deepseek-default
-```
-
-Use `deepseek-reasoner` for reasoning mode. Pi tool loops reuse one native
-DeepSeek session, and conversational replies do not trigger shell tools.
+`bun run setup:pi` synchronizes all Qwen and DeepSeek models into
+`~/.pi/agent/models.json`. The unified endpoint is
+`http://127.0.0.1:3263/api`. See
+[`examples/pi-agent/README.md`](examples/pi-agent/README.md) for details.
 
 ## Open WebUI
 
@@ -462,7 +446,7 @@ docker compose logs -f qwen-proxy
 
 The Compose configuration persists:
 
-- `./session` for Qwen authentication
+- `./session` for Qwen and DeepSeek authentication and remote chat mappings
 - `./logs` for application logs
 - `./uploads` for temporary uploads
 
@@ -537,6 +521,8 @@ Useful commands:
 | `bun run start:deepseek` | Start the DeepSeek account menu and proxy |
 | `bun run dev:deepseek` | Start the DeepSeek proxy with Bun watch mode |
 | `bun run auth:deepseek` | Manage DeepSeek accounts |
+| `bun run start:gateway` | Start the unified Qwen + DeepSeek gateway |
+| `bun run setup:pi` | Synchronize all models into Pi Agent |
 | `bun run models:sync` | Refresh Qwen model metadata |
 | `bun run smoke` | Test a running authenticated proxy |
 | `bun run test` | Run offline Bun tests |
