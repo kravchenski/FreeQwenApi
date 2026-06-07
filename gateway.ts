@@ -13,6 +13,12 @@ function targetFor(model = '') {
     return model.startsWith('deepseek-') ? deepSeekUrl : qwenUrl;
 }
 
+function conversationId(req, body: Record<string, any>) {
+    const explicit = req.get('x-conversation-id') || req.get('x-openwebui-conversation-id')
+        || body.conversation_id || body.chat_id || body.chatId;
+    return explicit ? String(explicit) : undefined;
+}
+
 app.get(['/api/models', '/api/v1/models'], async (_req, res) => {
     try {
         const responses = await Promise.all([qwenUrl, deepSeekUrl].map(url => fetch(`${url}/models`)));
@@ -30,11 +36,13 @@ app.all('/api/*', async (req, res) => {
         const parsed = body ? JSON.parse(body.toString()) : {};
         const upstream = targetFor(parsed.model);
         const path = req.originalUrl.replace(/^\/api/, '');
+        const sessionId = conversationId(req, parsed);
         const response = await fetch(`${upstream}${path}`, {
             method: req.method,
             headers: {
                 'content-type': req.get('content-type') || 'application/json',
-                accept: req.get('accept') || 'application/json'
+                accept: req.get('accept') || 'application/json',
+                ...(sessionId ? { 'x-conversation-id': sessionId } : {})
             },
             body
         });
