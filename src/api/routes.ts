@@ -478,7 +478,7 @@ GENERAL TOOL RULES:
 - For codebase tasks such as implement, fix, refactor, review, test, or inspect, you MUST call read/ls/find/grep/bash or another suitable workspace tool before making claims or giving a final answer.
 - Never claim that a file exists, was deleted, changed, tested, or listed unless that fact came from a tool result in the current conversation.
 - Do not print a shell command as a suggestion when you can call the corresponding tool yourself.
-- Never simulate tools with XML, markdown, or prose such as <bash>...</bash>, <read>...</read>, [调用 read] [{"path":"..."}], or fenced shell blocks. Emit a real JSON tool call instead.
+- Never simulate tools with XML, markdown, or prose such as <bash>...</bash>, <read>...</read>, [调用 read] [{"path":"..."}], Tool call: read (path), or fenced shell blocks. Emit a real JSON tool call instead.
 - When the user asks you to implement, fix, or refactor, continue through inspection, edits, and verification. Do not stop to ask which approach they prefer unless required information cannot be discovered.
 - When an action, lookup, file read/write, command, web search, calculation, or verification is needed, CALL A TOOL instead of describing the action.
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
@@ -663,6 +663,40 @@ export function recoverChineseStyleToolCall(text) {
     return null;
 }
 
+export function recoverProseStyleToolCalls(text) {
+    const matches = [...text.matchAll(/^\s*Tool call:\s*([A-Za-z0-9_-]+)\s*\((.*)\)\s*$/gim)];
+    if (matches.length === 0) return null;
+
+    const pathTools = new Set(['read', 'read_file', 'ls', 'find', 'grep', 'search_files']);
+    const commandTools = new Set(['bash', 'terminal']);
+    const calls = matches.map(match => {
+        const name = match[1];
+        const value = match[2].trim();
+        if (!value) return null;
+
+        if (value.startsWith('{') || value.startsWith('[')) {
+            try {
+                const parsed = JSON.parse(value);
+                const argumentsValue = Array.isArray(parsed) ? parsed[0] : parsed;
+                if (argumentsValue && typeof argumentsValue === 'object') {
+                    return { name, arguments: argumentsValue };
+                }
+            } catch {
+                return null;
+            }
+        }
+
+        if (commandTools.has(name)) {
+            return { name, arguments: { command: value } };
+        }
+        if (pathTools.has(name)) {
+            return { name, arguments: { path: value } };
+        }
+        return null;
+    }).filter(Boolean);
+    return calls.length > 0 ? calls : null;
+}
+
 export function conversationalShellText(name, rawArgs) {
     if (name !== 'bash' && name !== 'terminal') return false;
     let args;
@@ -766,6 +800,15 @@ export function parseToolCallJson(content) {
             function: { name: recoveredChinese.name, arguments: JSON.stringify(recoveredChinese.arguments) },
             index: 0
         }];
+    }
+    const recoveredProse = recoverProseStyleToolCalls(content);
+    if (recoveredProse) {
+        return recoveredProse.map((call, index) => ({
+            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+            type: 'function',
+            function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+            index
+        }));
     }
     return null;
 }

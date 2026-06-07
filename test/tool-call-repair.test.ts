@@ -7,6 +7,7 @@ import {
     recoverSimpleToolCalls,
     recoverBrokenBashToolCall,
     recoverChineseStyleToolCall,
+    recoverProseStyleToolCalls,
     recoverXmlStyleToolCall,
     parseToolCallJson,
     repairEditArguments,
@@ -70,6 +71,7 @@ describe('tool call JSON repair', () => {
 
         expect(prompt).toContain('For codebase tasks such as implement, fix, refactor');
         expect(prompt).toContain('Never claim that a file exists, was deleted, changed, tested, or listed');
+        expect(prompt).toContain('Tool call: read (path)');
     });
 
     test('repairs common missing backticks in JavaScript edits', () => {
@@ -159,5 +161,38 @@ describe('tool call JSON repair', () => {
             arguments: { path: '/tmp/arena.html' }
         });
         expect(parseToolCallJson(content)?.[0].function.name).toBe('read');
+    });
+
+    test('converts prose-style tool calls into multiple real tool calls', () => {
+        const content = [
+            'Сначала проверим текущие файлы.',
+            '',
+            'Tool call: read (heintai/js/arena-main.js)',
+            '',
+            'Tool call: read (heintai/js/index.js)',
+            '',
+            'Tool call: read (heintai/js/three-bg.js)'
+        ].join('\n');
+
+        expect(recoverProseStyleToolCalls(content)).toEqual([
+            { name: 'read', arguments: { path: 'heintai/js/arena-main.js' } },
+            { name: 'read', arguments: { path: 'heintai/js/index.js' } },
+            { name: 'read', arguments: { path: 'heintai/js/three-bg.js' } }
+        ]);
+        const calls = parseToolCallJson(content);
+        expect(calls).toHaveLength(3);
+        expect(calls?.map(call => JSON.parse(call.function.arguments).path)).toEqual([
+            'heintai/js/arena-main.js',
+            'heintai/js/index.js',
+            'heintai/js/three-bg.js'
+        ]);
+    });
+
+    test('converts prose-style JSON arguments and rejects malformed arguments', () => {
+        expect(recoverProseStyleToolCalls('Tool call: read ({"path":"main.ts"})')).toEqual([
+            { name: 'read', arguments: { path: 'main.ts' } }
+        ]);
+        expect(recoverProseStyleToolCalls('Tool call: read ({"path":})')).toBeNull();
+        expect(recoverProseStyleToolCalls('Tool call: unknown (anything)')).toBeNull();
     });
 });
