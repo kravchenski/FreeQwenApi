@@ -48,6 +48,9 @@ jobs:
       - name: Validate cross-platform launcher
         run: bun run start:full -- --check-only --skip-checks
 
+      - name: Validate cross-platform agent installer
+        run: bun run setup:agents -- --dry-run --home .agent-setup-check
+
   docker:
     name: Docker build
     runs-on: ubuntu-latest
