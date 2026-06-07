@@ -406,14 +406,12 @@ done
 
 ## Тестирование
 
-Запустите встроенные тестовые скрипты:
+Запустите общие проверки проекта и отправьте пробный запрос через публичный API:
 
 ```bash
-# Проверить все три типа генерации (чат, изображение, видео)
-bun run test:features
-
-# Сравнить server-side и client-side polling для видео
-bun run test:video-polling
+bun run ci
+curl http://127.0.0.1:3264/api/images/models
+curl http://127.0.0.1:3264/api/videos/models
 ```
 
 ---

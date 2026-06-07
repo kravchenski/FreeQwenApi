@@ -506,6 +506,7 @@ Project checks:
 
 ```bash
 bun run test
+bun run analyze
 bun run check
 bun run ci
 ```
@@ -526,6 +527,7 @@ Useful commands:
 | `bun run models:sync` | Refresh Qwen model metadata |
 | `bun run smoke` | Test a running authenticated proxy |
 | `bun run test` | Run offline Bun tests |
+| `bun run analyze` | Detect unused files, exports, and dependencies |
 | `bun run check` | Validate that the server bundles under Bun |
 | `bun run ci` | Run all offline CI checks |
 
@@ -603,12 +605,12 @@ DEEPSEEK_CHROME_PATH=/path/to/google-chrome bun run auth:deepseek -- --add
 
 ### Pi cannot connect to DeepSeek
 
-Keep the DeepSeek proxy running before starting Pi:
+Keep the unified Compose stack running before starting Pi:
 
 ```bash
-bun run start:deepseek
-curl http://127.0.0.1:3265/api/models
-pi --provider freedeepseek --model deepseek-default
+docker compose up -d
+curl http://127.0.0.1:3263/api/models
+pi --provider freeai --model deepseek-default
 ```
 
 ### The proxy starts but requests fail
