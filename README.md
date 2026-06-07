@@ -9,6 +9,7 @@
 [![GitHub stars](https://img.shields.io/github/stars/kravchenski/FreeQwenApi?style=flat)](https://github.com/kravchenski/FreeQwenApi/stargazers)
 [![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun&logoColor=000)](https://bun.sh)
 [![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)](#api-reference)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 [Quick start](#quick-start) · [DeepSeek](#deepseek-web) · [AI agents](#ai-agent-setup) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
 
@@ -577,6 +578,17 @@ bun run start:full -- --skip-checks --skip-sync
 bun run start:full -- --auth
 bun run start:full -- --service gateway
 ```
+
+## Author
+
+FreeQwenApi is developed and maintained by
+[`kravchenski`](https://github.com/kravchenski).
+
+## License
+
+FreeQwenApi is released under the [MIT License](LICENSE).
+
+Copyright (c) 2026 kravchenski.
 
 ## CI/CD
 
