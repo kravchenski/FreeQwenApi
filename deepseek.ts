@@ -2,7 +2,7 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import crypto from 'crypto';
 
-import { deepSeekCompletion, parseDeepSeekEvent } from './src/providers/deepseek/client.ts';
+import { deepSeekCompletion, isEmptyToolCallResponse, parseDeepSeekEvent } from './src/providers/deepseek/client.ts';
 import { conversationalShellText, parseToolCallJson, recoverBrokenBashToolCall, toolsToPrompt } from './src/api/routes.ts';
 import { hasValidDeepSeekAccounts } from './src/providers/deepseek/accounts.ts';
 import { runDeepSeekAccountMenu } from './src/providers/deepseek/auth.ts';
@@ -34,6 +34,36 @@ function fallbackInspectionToolCall(tools: Array<Record<string, any>> | null) {
     return null;
 }
 
+async function collectResponse(response: Response, onEvent?: (event: Record<string, any>) => void) {
+    const state = {
+        phase: 'content' as const,
+        fragment: undefined as string | undefined,
+        contentSnapshot: '',
+        thinkingSnapshot: ''
+    };
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('DeepSeek returned an empty response body');
+    const decoder = new TextDecoder();
+    let pending = '';
+    let content = '';
+    let reasoning = '';
+
+    while (true) {
+        const { value, done } = await reader.read();
+        pending += decoder.decode(value || new Uint8Array(), { stream: !done });
+        const lines = pending.split('\n');
+        pending = lines.pop() || '';
+        for (const line of lines) {
+            const event = parseDeepSeekEvent(line.trim(), state);
+            if (event?.content) content += event.content;
+            if (event?.reasoning) reasoning += event.reasoning;
+            if (event) onEvent?.(event);
+        }
+        if (done) break;
+    }
+    return { content, reasoning };
+}
+
 app.get(['/api/models', '/api/v1/models'], (_req, res) => {
     res.json({
         object: 'list',
@@ -58,19 +88,6 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
         const { response, sessionId } = await deepSeekCompletion({ messages: upstreamMessages, model, conversationId });
         const id = `chatcmpl-${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`;
         const created = Math.floor(Date.now() / 1000);
-        const state = {
-            phase: 'content' as const,
-            fragment: undefined as string | undefined,
-            contentSnapshot: '',
-            thinkingSnapshot: ''
-        };
-        const reader = response.body?.getReader();
-        if (!reader) throw new Error('DeepSeek returned an empty response body');
-        const decoder = new TextDecoder();
-        let pending = '';
-        let content = '';
-        let reasoning = '';
-
         const captureToolCalls = Array.isArray(combinedTools) && combinedTools.length > 0;
         if (stream) {
             res.setHeader('Content-Type', 'text/event-stream');
@@ -78,23 +95,18 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
             res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { role: 'assistant' }, finish_reason: null }] })}\n\n`);
         }
 
-        while (true) {
-            const { value, done } = await reader.read();
-            pending += decoder.decode(value || new Uint8Array(), { stream: !done });
-            const lines = pending.split('\n');
-            pending = lines.pop() || '';
-            for (const line of lines) {
-                const event = parseDeepSeekEvent(line.trim(), state);
-                if (event?.content) {
-                    content += event.content;
-                    if (stream && !captureToolCalls) res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }] })}\n\n`);
-                }
-                if (event?.reasoning) {
-                    reasoning += event.reasoning;
-                    if (stream && !captureToolCalls) res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { reasoning_content: event.reasoning }, finish_reason: null }] })}\n\n`);
-                }
+        let { content, reasoning } = await collectResponse(response, event => {
+            if (stream && !captureToolCalls && event.content) {
+                res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { content: event.content }, finish_reason: null }] })}\n\n`);
             }
-            if (done) break;
+            if (stream && !captureToolCalls && event.reasoning) {
+                res.write(`data: ${JSON.stringify({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: { reasoning_content: event.reasoning }, finish_reason: null }] })}\n\n`);
+            }
+        });
+
+        if (captureToolCalls && isEmptyToolCallResponse(content) && !isCodebaseActionRequest(messages)) {
+            const retry = await deepSeekCompletion({ messages, model, conversationId });
+            ({ content, reasoning } = await collectResponse(retry.response));
         }
 
         const recoveredShell = captureToolCalls ? recoverBrokenBashToolCall(content) : null;

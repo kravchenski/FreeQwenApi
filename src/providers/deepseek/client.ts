@@ -91,6 +91,10 @@ export function messagesToPrompt(messages: Array<Record<string, any>>) {
     }).join('\n\n');
 }
 
+export function isEmptyToolCallResponse(content: string) {
+    return /^\s*(?:```json\s*)?\{\s*"tool_calls"\s*:\s*\[\s*\]\s*\}(?:\s*```)?\s*$/i.test(content);
+}
+
 export async function deepSeekCompletion(options: {
     messages: Array<Record<string, any>>;
     model?: string;

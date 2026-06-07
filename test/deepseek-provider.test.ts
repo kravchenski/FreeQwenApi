@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 
-import { conversationKey, messagesToPrompt, parseDeepSeekEvent } from '../src/providers/deepseek/client.ts';
+import { conversationKey, isEmptyToolCallResponse, messagesToPrompt, parseDeepSeekEvent } from '../src/providers/deepseek/client.ts';
 import { validateDeepSeekPowSolver } from '../src/providers/deepseek/pow.ts';
 import { hasValidDeepSeekAccounts } from '../src/providers/deepseek/accounts.ts';
 
@@ -42,6 +42,12 @@ describe('DeepSeek web provider', () => {
             .toEqual({ content: 'При' });
         expect(parseDeepSeekEvent('data: {"v":"вет!"}', state))
             .toEqual({ content: 'вет!' });
+    });
+
+    test('detects empty simulated tool-call responses for conversational retry', () => {
+        expect(isEmptyToolCallResponse('{"tool_calls":[]}')).toBeTrue();
+        expect(isEmptyToolCallResponse('```json\n{"tool_calls": []}\n```')).toBeTrue();
+        expect(isEmptyToolCallResponse('{"tool_calls":[{"name":"read"}]}')).toBeFalse();
     });
 
     test('loads the bundled DeepSeek PoW solver', async () => {
