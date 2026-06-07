@@ -478,7 +478,7 @@ GENERAL TOOL RULES:
 - For codebase tasks such as implement, fix, refactor, review, test, or inspect, you MUST call read/ls/find/grep/bash or another suitable workspace tool before making claims or giving a final answer.
 - Never claim that a file exists, was deleted, changed, tested, or listed unless that fact came from a tool result in the current conversation.
 - Do not print a shell command as a suggestion when you can call the corresponding tool yourself.
-- Never simulate tools with XML, markdown, or prose such as <bash>...</bash>, <read>...</read>, [调用 read] [{"path":"..."}], Tool call: read (path), or fenced shell blocks. Emit a real JSON tool call instead.
+- Never simulate tools with XML, markdown, or prose such as <bash>...</bash>, <read>...</read>, [调用 read] [{"path":"..."}], Tool call: read (path), Tool call: write (path) followed by Content:, or fenced shell blocks. Emit a real JSON tool call instead.
 - When the user asks you to implement, fix, or refactor, continue through inspection, edits, and verification. Do not stop to ask which approach they prefer unless required information cannot be discovered.
 - When an action, lookup, file read/write, command, web search, calculation, or verification is needed, CALL A TOOL instead of describing the action.
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
@@ -664,12 +664,13 @@ export function recoverChineseStyleToolCall(text) {
 }
 
 export function recoverProseStyleToolCalls(text) {
-    const matches = [...text.matchAll(/^\s*Tool call:\s*([A-Za-z0-9_-]+)\s*\((.*)\)\s*$/gim)];
+    const matches = [...text.matchAll(/^[ \t]*Tool call:\s*([A-Za-z0-9_-]+)\s*\((.*)\)[ \t]*$/gim)];
     if (matches.length === 0) return null;
 
     const pathTools = new Set(['read', 'read_file', 'ls', 'find', 'grep', 'search_files']);
     const commandTools = new Set(['bash', 'terminal']);
-    const calls = matches.map(match => {
+    const writeTools = new Set(['write', 'write_file']);
+    const calls = matches.map((match, index) => {
         const name = match[1];
         const value = match[2].trim();
         if (!value) return null;
@@ -686,6 +687,17 @@ export function recoverProseStyleToolCalls(text) {
             }
         }
 
+        if (writeTools.has(name)) {
+            const segmentStart = (match.index || 0) + match[0].length;
+            const segmentEnd = index + 1 < matches.length ? matches[index + 1].index : text.length;
+            const segment = text.slice(segmentStart, segmentEnd);
+            const contentMarker = segment.match(/^[ \t]*(?:Content|Содержимое):[ \t]*/im);
+            if (!contentMarker || contentMarker.index === undefined) return null;
+            let content = segment.slice(contentMarker.index + contentMarker[0].length).replace(/^\r?\n/, '').trimEnd();
+            const wholeFence = content.match(/^```(?:html|css|javascript|js|typescript|ts|json|text)?[ \t]*\r?\n([\s\S]*?)\r?\n```$/i);
+            if (wholeFence) content = wholeFence[1];
+            return content ? { name, arguments: { path: value, content } } : null;
+        }
         if (commandTools.has(name)) {
             return { name, arguments: { command: value } };
         }
@@ -693,6 +705,24 @@ export function recoverProseStyleToolCalls(text) {
             return { name, arguments: { path: value } };
         }
         return null;
+    }).filter(Boolean);
+    return calls.length > 0 ? calls : null;
+}
+
+export function recoverFencedShellToolCalls(text) {
+    const fencePattern = /```(?:bash|sh|shell|zsh)[ \t]*\r?\n([\s\S]*?)```/gi;
+    const matches = [...text.matchAll(fencePattern)];
+    if (matches.length === 0) return null;
+
+    const prose = text.replace(fencePattern, ' ').replace(/\s+/g, ' ').trim();
+    const hasExecutionIntent = /(?:давайте|провер(?:им|ю)|посмотр(?:им|ю)|изучу|запущу|выполню|let'?s|i(?:'ll| will) (?:run|check|inspect))/i.test(prose);
+    const looksLikeInstructions = /(?:например|пример|запустите|используйте|выполните|for example|run this|use this|command:|(?:run|execute|use) (?:the |this )?command)/i.test(prose);
+    if (!hasExecutionIntent || looksLikeInstructions) return null;
+
+    const calls = matches.map(match => {
+        const command = match[1].trim();
+        if (!command || conversationalShellText('bash', { command })) return null;
+        return { name: 'bash', arguments: { command } };
     }).filter(Boolean);
     return calls.length > 0 ? calls : null;
 }
@@ -710,8 +740,21 @@ export function conversationalShellText(name, rawArgs) {
     return match ? match[1] : null;
 }
 
-export function parseToolCallJson(content) {
+function recoveredToolCalls(calls, allowedNames) {
+    if (!calls || calls.some(call => allowedNames && !allowedNames.has(call.name))) return null;
+    return calls.map((call, index) => ({
+        id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
+        type: 'function',
+        function: { name: call.name, arguments: JSON.stringify(call.arguments) },
+        index
+    }));
+}
+
+export function parseToolCallJson(content, tools = null) {
     if (typeof content !== 'string') return null;
+    const allowedNames = Array.isArray(tools)
+        ? new Set(tools.map(tool => (tool?.function || tool)?.name).filter(Boolean))
+        : null;
     let text = content.trim();
     const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
     if (fence) text = fence[1].trim();
@@ -751,7 +794,7 @@ export function parseToolCallJson(content) {
                 const rawArgs = call.arguments ?? call.args ?? call.input ?? call.function?.arguments ?? {};
                 const normalizedArgs = name === 'edit' ? repairEditArguments(rawArgs) : rawArgs;
                 const args = typeof normalizedArgs === 'string' ? normalizedArgs : JSON.stringify(normalizedArgs || {});
-                if (!name) return null;
+                if (!name || (allowedNames && !allowedNames.has(name))) return null;
                 if (conversationalShellText(name, args)) return null;
                 return {
                     id: call.id || `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
@@ -766,50 +809,19 @@ export function parseToolCallJson(content) {
         }
     }
     const recovered = recoverSimpleToolCalls(text);
-    if (recovered) {
-        return recovered.map((call, index) => ({
-            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
-            type: 'function',
-            function: { name: call.name, arguments: JSON.stringify(call.arguments) },
-            index
-        }));
-    }
+    if (recovered) return recoveredToolCalls(recovered, allowedNames);
     const recoveredBash = recoverBrokenBashToolCall(text);
     if (recoveredBash && !conversationalShellText(recoveredBash.name, recoveredBash.arguments)) {
-        return [{
-            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
-            type: 'function',
-            function: { name: recoveredBash.name, arguments: JSON.stringify(recoveredBash.arguments) },
-            index: 0
-        }];
+        return recoveredToolCalls([recoveredBash], allowedNames);
     }
     const recoveredXml = recoverXmlStyleToolCall(content);
-    if (recoveredXml) {
-        return [{
-            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
-            type: 'function',
-            function: { name: recoveredXml.name, arguments: JSON.stringify(recoveredXml.arguments) },
-            index: 0
-        }];
-    }
+    if (recoveredXml) return recoveredToolCalls([recoveredXml], allowedNames);
     const recoveredChinese = recoverChineseStyleToolCall(content);
-    if (recoveredChinese) {
-        return [{
-            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
-            type: 'function',
-            function: { name: recoveredChinese.name, arguments: JSON.stringify(recoveredChinese.arguments) },
-            index: 0
-        }];
-    }
+    if (recoveredChinese) return recoveredToolCalls([recoveredChinese], allowedNames);
     const recoveredProse = recoverProseStyleToolCalls(content);
-    if (recoveredProse) {
-        return recoveredProse.map((call, index) => ({
-            id: `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
-            type: 'function',
-            function: { name: call.name, arguments: JSON.stringify(call.arguments) },
-            index
-        }));
-    }
+    if (recoveredProse) return recoveredToolCalls(recoveredProse, allowedNames);
+    const recoveredFencedShell = recoverFencedShellToolCalls(content);
+    if (recoveredFencedShell) return recoveredToolCalls(recoveredFencedShell, allowedNames);
     return null;
 }
 
@@ -1330,7 +1342,7 @@ router.post('/chat/completions', async (req, res) => {
                 );
 
                 if (captureToolCalls) {
-                    const toolCalls = parseToolCallJson(result?.choices?.[0]?.message?.content);
+                    const toolCalls = parseToolCallJson(result?.choices?.[0]?.message?.content, combinedTools);
                     if (toolCalls && toolCalls.length > 0) {
                         writeToolCallsSse(res, mappedModel, result, toolCalls);
                         return;
@@ -1423,7 +1435,9 @@ router.post('/chat/completions', async (req, res) => {
                 });
             }
 
-            const toolCalls = parseToolCallJson(result?.choices?.[0]?.message?.content);
+            const toolCalls = Array.isArray(combinedTools) && combinedTools.length > 0
+                ? parseToolCallJson(result?.choices?.[0]?.message?.content, combinedTools)
+                : null;
             if (toolCalls && toolCalls.length > 0) {
                 return res.json(buildOpenAIToolResponse(result, mappedModel, toolCalls));
             }
@@ -1645,7 +1659,7 @@ router.post('/v1/chat/completions', async (req, res) => {
                 );
 
                 if (captureToolCalls) {
-                    const toolCalls = parseToolCallJson(result?.choices?.[0]?.message?.content);
+                    const toolCalls = parseToolCallJson(result?.choices?.[0]?.message?.content, combinedTools);
                     if (toolCalls && toolCalls.length > 0) {
                         writeToolCallsSse(res, mappedModel, result, toolCalls);
                         return;
@@ -1742,7 +1756,9 @@ router.post('/v1/chat/completions', async (req, res) => {
                 messageText = result.response.text;
             }
 
-            const toolCalls = parseToolCallJson(messageText);
+            const toolCalls = Array.isArray(combinedTools) && combinedTools.length > 0
+                ? parseToolCallJson(messageText, combinedTools)
+                : null;
             if (toolCalls && toolCalls.length > 0) {
                 return res.json(buildOpenAIToolResponse(result, mappedModel, toolCalls));
             }

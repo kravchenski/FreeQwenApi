@@ -7,6 +7,7 @@ import {
     recoverSimpleToolCalls,
     recoverBrokenBashToolCall,
     recoverChineseStyleToolCall,
+    recoverFencedShellToolCalls,
     recoverProseStyleToolCalls,
     recoverXmlStyleToolCall,
     parseToolCallJson,
@@ -194,5 +195,61 @@ describe('tool call JSON repair', () => {
         ]);
         expect(recoverProseStyleToolCalls('Tool call: read ({"path":})')).toBeNull();
         expect(recoverProseStyleToolCalls('Tool call: unknown (anything)')).toBeNull();
+    });
+
+    test('recovers multiline write content without damaging embedded markup', () => {
+        const content = [
+            'Полностью заменю файл.',
+            '',
+            'Tool call: write (heintai/arena.html)',
+            'Content: <!DOCTYPE html>',
+            '<html lang="ru">',
+            '<body>',
+            '```',
+            '<script type="module">',
+            'console.log("arena");',
+            '</script>',
+            '```',
+            '</body>',
+            '</html>'
+        ].join('\n');
+
+        const calls = recoverProseStyleToolCalls(content);
+        expect(calls).toHaveLength(1);
+        expect(calls?.[0].name).toBe('write');
+        expect(calls?.[0].arguments.path).toBe('heintai/arena.html');
+        expect(calls?.[0].arguments.content).toContain('<!DOCTYPE html>');
+        expect(calls?.[0].arguments.content).toContain('console.log("arena");');
+        expect(parseToolCallJson(content, [{ function: { name: 'write' } }])?.[0].function.name).toBe('write');
+    });
+
+    test('recovers intentional fenced shell checks but leaves command examples as text', () => {
+        const inspection = [
+            'Давайте проверим текущее состояние и исправим основательно.',
+            '',
+            '```bash',
+            'cat heintai/index.html | grep -A5 "viewport"',
+            '```',
+            '',
+            '```bash',
+            'cat heintai/css/index.css | grep -A10 "@media"',
+            '```'
+        ].join('\n');
+        const instructions = 'Запустите эту команду:\n```bash\nbun run ci\n```';
+
+        expect(recoverFencedShellToolCalls(inspection)).toHaveLength(2);
+        expect(parseToolCallJson(inspection, [{ function: { name: 'bash' } }])).toHaveLength(2);
+        expect(recoverFencedShellToolCalls(instructions)).toBeNull();
+    });
+
+    test('only returns tool calls that the client actually supplied', () => {
+        const write = 'Tool call: write (arena.html)\nContent: <html></html>';
+        const shell = 'Сначала проверю проект.\n```bash\nls -la\n```';
+        const json = '{"tool_calls":[{"name":"write","arguments":{"path":"arena.html","content":"ok"}}]}';
+
+        expect(parseToolCallJson(write, [{ function: { name: 'read' } }])).toBeNull();
+        expect(parseToolCallJson(shell, [{ function: { name: 'read' } }])).toBeNull();
+        expect(parseToolCallJson(json, [{ function: { name: 'read' } }])).toBeNull();
+        expect(parseToolCallJson(write, [{ function: { name: 'write' } }])?.[0].function.name).toBe('write');
     });
 });

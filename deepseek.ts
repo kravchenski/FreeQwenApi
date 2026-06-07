@@ -114,7 +114,7 @@ app.post(['/api/chat/completions', '/api/v1/chat/completions'], async (req, res)
             ? conversationalShellText(recoveredShell.name, recoveredShell.arguments)
             : null;
         if (conversationalText) content = conversationalText;
-        let toolCalls = captureToolCalls && !conversationalText ? parseToolCallJson(content) : null;
+        let toolCalls = captureToolCalls && !conversationalText ? parseToolCallJson(content, combinedTools) : null;
         if (!toolCalls?.length && captureToolCalls && isCodebaseActionRequest(messages)) {
             const fallback = fallbackInspectionToolCall(combinedTools);
             if (fallback) {
