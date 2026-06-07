@@ -11,11 +11,12 @@
     "scripts": {
         "start": "bun run index.ts",
         "start:deepseek": "bun run deepseek.ts",
+        "start:gateway": "bun run gateway.ts",
         "start:full": "./start.sh",
         "dev": "bun --watch index.ts",
         "dev:deepseek": "bun --watch deepseek.ts",
         "test": "bun test ./test",
-        "check": "bun build index.ts deepseek.ts --target=bun --external typescript --outdir=.build-check",
+        "check": "bun build index.ts deepseek.ts gateway.ts --target=bun --external typescript --outdir=.build-check",
         "ci": "bun run test && bun run check",
         "example:stream": "bun run examples/openai-sdk/streaming.js",
         "example:simple": "bun run examples/openai-sdk/simple.js",
@@ -29,6 +30,7 @@
         "example:streaming-test": "bun run examples/streaming-test.js",
         "auth": "bun run scripts/auth.ts",
         "auth:deepseek": "bun run scripts/deepseek-auth.ts",
+        "setup:pi": "bun run scripts/setup-pi.ts",
         "models:sync": "bun run scripts/sync_models.ts",
         "smoke": "bun run scripts/smoke_test.ts"
     },

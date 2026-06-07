@@ -1,4 +1,21 @@
 services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.light
+    image: free-ai-gateway:latest
+    command: ["bun", "run", "gateway.ts"]
+    environment:
+      - GATEWAY_PORT=3263
+      - QWEN_URL=http://qwen-proxy:3264/api
+      - DEEPSEEK_URL=http://deepseek-proxy:3265/api
+    ports:
+      - "${GATEWAY_PORT:-3263}:3263"
+    depends_on:
+      - qwen-proxy
+      - deepseek-proxy
+    restart: unless-stopped
+
   qwen-proxy:
     build: .
     image: qwen-api-proxy:latest
@@ -14,4 +31,20 @@ services:
       - ./session:/app/session
       - ./logs:/app/logs
       - ./uploads:/app/uploads
+    restart: unless-stopped
+
+  deepseek-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.light
+    image: deepseek-web-proxy:latest
+    command: ["bun", "run", "deepseek.ts"]
+    environment:
+      - NODE_ENV=production
+      - DEEPSEEK_PORT=3265
+      - HOST=0.0.0.0
+      - SKIP_ACCOUNT_MENU=true
+    volumes:
+      - ./session:/app/session
+      - ./logs:/app/logs
     restart: unless-stopped

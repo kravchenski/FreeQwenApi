@@ -23,7 +23,7 @@ ENV CHROME_PATH=/usr/bin/chromium-headless-shell \
 WORKDIR /app
 
 COPY --from=builder --chown=bun:bun /app/node_modules ./node_modules
-COPY --chown=bun:bun package.json bun.lock index.ts ./
+COPY --chown=bun:bun package.json bun.lock index.ts deepseek.ts gateway.ts ./
 COPY --chown=bun:bun src ./src
 
 RUN install -d -o bun -g bun /app/session /app/logs /app/uploads
