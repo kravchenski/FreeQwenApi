@@ -43,9 +43,7 @@ solves the required Proof-of-Work challenge before each completion.
 Start the proxy and use the account menu, matching the Qwen startup flow:
 
 ```bash
-bun run start:deepseek
-# or install, validate, and start:
-./start-deepseek.sh
+bun run start:deepseek:full
 ```
 
 Choose `1` to register or add an account. Chromium opens the DeepSeek sign-in

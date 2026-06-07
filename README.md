@@ -64,8 +64,12 @@ to Qwen Chat models and translated back into OpenAI-compatible responses.
 ### Requirements
 
 - [Bun](https://bun.sh/) 1.2 or newer
-- Chromium or Chrome
+- Chrome, Chromium, Edge, or Brave
 - A Qwen Chat account
+
+Native startup is tested on Linux, macOS, and Windows. Docker runs through a
+Linux container runtime such as Docker Desktop. See
+[`docs/PLATFORM_SUPPORT.md`](docs/PLATFORM_SUPPORT.md).
 
 ### Install and authenticate
 
@@ -73,12 +77,15 @@ to Qwen Chat models and translated back into OpenAI-compatible responses.
 git clone https://github.com/kravchenski/FreeQwenApi.git
 cd FreeQwenApi
 
-./start.sh
+bun run start:full
 ```
 
-The full startup script installs dependencies, runs offline checks, opens the
+The cross-platform launcher installs dependencies, runs offline checks, opens the
 authentication flow when no active account exists, synchronizes models, and
 starts the proxy. Sign in to Qwen Chat and return to the terminal when prompted.
+
+Compatibility wrappers are also available: `./start.sh` on Linux/macOS and
+`start.bat` on Windows.
 
 To run each step manually:
 
@@ -159,9 +166,7 @@ DeepSeek runs as a separate proxy because its web API uses different sessions,
 payloads, SSE events, and a Proof-of-Work challenge.
 
 ```bash
-bun run start:deepseek
-# or install dependencies, validate, and start:
-./start-deepseek.sh
+bun run start:deepseek:full
 ```
 
 The startup menu matches the Qwen flow:
@@ -339,8 +344,8 @@ For client-side polling, set `"wait": false` and query:
 curl "http://127.0.0.1:3264/api/tasks/status/TASK_ID?wait=true"
 ```
 
-See [`IMAGE_VIDEO_GENERATION_GUIDE.md`](IMAGE_VIDEO_GENERATION_GUIDE.md) for
-the full media-generation guide.
+See [`docs/IMAGE_GENERATION.md`](docs/IMAGE_GENERATION.md) for the
+media-generation guide.
 
 ## API Reference
 
@@ -408,7 +413,7 @@ Create a local `.env` or export environment variables before starting the proxy.
 | `PORT` | `3264` | HTTP port |
 | `DEEPSEEK_PORT` | `3265` | DeepSeek proxy HTTP port |
 | `DEEPSEEK_BASE_URL` | `https://chat.deepseek.com` | DeepSeek Web origin |
-| `DEEPSEEK_CHROME_PATH` | `/usr/bin/chromium` | Normal browser used for DeepSeek registration |
+| `DEEPSEEK_CHROME_PATH` | auto-detected | Interactive browser used for DeepSeek registration |
 | `DEEPSEEK_BROWSER_PROFILE` | `session/deepseek/browser-profile` | Persistent DeepSeek browser profile |
 | `DEEPSEEK_SESSION_DIR` | `session/deepseek` | Saved DeepSeek accounts and cookies |
 | `DEEPSEEK_TOKEN` | unset | Optional non-interactive DeepSeek token fallback |
@@ -517,6 +522,7 @@ Useful commands:
 | --- | --- |
 | `bun start` | Start the proxy |
 | `bun run start:full` | Install, validate, authenticate, sync models, and start |
+| `bun run start:deepseek:full` | Install, validate, authenticate, and start DeepSeek |
 | `bun run dev` | Start with Bun watch mode |
 | `bun run auth` | Manage Qwen accounts |
 | `bun run start:deepseek` | Start the DeepSeek account menu and proxy |
@@ -534,21 +540,22 @@ Useful commands:
 The smoke test is intentionally not part of CI because it requires a real Qwen
 account and session.
 
-The full startup script also supports:
+The cross-platform launcher also supports:
 
 ```bash
-./start.sh --help
-./start.sh --check-only
-./start.sh --skip-checks --skip-sync
-./start.sh --auth
+bun run start:full -- --help
+bun run start:full -- --check-only
+bun run start:full -- --skip-checks --skip-sync
+bun run start:full -- --auth
+bun run start:full -- --service gateway
 ```
 
 ## CI/CD
 
 GitHub Actions workflows live in [`.github/workflows/`](.github/workflows/):
 
-- **CI** runs frozen dependency installation, Bun tests, Bun build validation,
-  and a Docker build for pull requests and branch pushes.
+- **CI** runs analysis, tests, launcher validation, and Bun build validation on
+  Linux, macOS, and Windows, plus a Linux Docker build.
 - **Container release** publishes multi-platform images to GHCR for version tags
   such as `v1.2.3`, and can also be started manually.
 
@@ -578,6 +585,7 @@ git diff --cached
 
 If a token is exposed, revoke or refresh it immediately. Please report
 security-sensitive issues privately instead of opening a public issue.
+See [`SECURITY.md`](SECURITY.md) for the reporting policy.
 
 ## Troubleshooting
 
@@ -587,7 +595,8 @@ Run `bun run auth -- --list`, then add or relogin an account.
 
 ### Chromium does not start
 
-Install Chromium and set its executable explicitly:
+Chrome, Chromium, Edge, and Brave are discovered automatically on Linux,
+macOS, and Windows. Set an executable explicitly if discovery fails:
 
 ```bash
 CHROME_PATH=/usr/bin/chromium bun run auth
@@ -631,12 +640,13 @@ Refresh metadata with `bun run models:sync`, or add the model to
 
 ## Documentation
 
+- [`docs/PLATFORM_SUPPORT.md`](docs/PLATFORM_SUPPORT.md) - Linux, macOS, Windows, browsers, and Docker
 - [`docs/FORK_DEMO_QUICKSTART.md`](docs/FORK_DEMO_QUICKSTART.md) - demo-oriented quick start
 - [`docs/OPENWEBUI_SETUP.md`](docs/OPENWEBUI_SETUP.md) - Open WebUI setup
 - [`docs/QWEN_CHAT_MODELS.md`](docs/QWEN_CHAT_MODELS.md) - model synchronization notes
 - [`docs/IMAGE_GENERATION.md`](docs/IMAGE_GENERATION.md) - image-generation details
-- [`IMAGE_VIDEO_GENERATION_GUIDE.md`](IMAGE_VIDEO_GENERATION_GUIDE.md) - image and video guide
 - [`examples/README.md`](examples/README.md) - JavaScript and Python examples
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) - development and pull-request requirements
 
 ## Disclaimer
 
