@@ -14,6 +14,11 @@ const models = ['deepseek-default', 'deepseek-reasoner', 'deepseek-expert', 'dee
 
 app.use(bodyParser.json({ limit: process.env.REQUEST_BODY_LIMIT || '25mb' }));
 
+app.get('/health', (_req, res) => {
+    const ready = hasValidDeepSeekAccounts() || Boolean(process.env.DEEPSEEK_TOKEN);
+    res.status(ready ? 200 : 503).json({ status: ready ? 'ok' : 'unauthenticated', service: 'deepseek' });
+});
+
 function isCodebaseActionRequest(messages: Array<Record<string, any>>) {
     const lastUser = [...messages].reverse().find(message => message?.role === 'user');
     const text = typeof lastUser?.content === 'string' ? lastUser.content.toLowerCase() : '';

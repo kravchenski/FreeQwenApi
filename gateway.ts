@@ -10,6 +10,17 @@ const deepSeekUrl = process.env.DEEPSEEK_URL || 'http://deepseek-proxy:3265/api'
 
 app.use(bodyParser.raw({ type: '*/*', limit: process.env.REQUEST_BODY_LIMIT || '25mb' }));
 
+app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'gateway' }));
+
+app.get('/ready', async (_req, res) => {
+    const providers = await Promise.allSettled([qwenUrl, deepSeekUrl].map(url => fetch(`${url}/models`)));
+    const ready = providers.every(result => result.status === 'fulfilled' && result.value.ok);
+    res.status(ready ? 200 : 503).json({
+        status: ready ? 'ready' : 'degraded',
+        providers: providers.map(result => result.status === 'fulfilled' && result.value.ok)
+    });
+});
+
 app.get(['/api/models', '/api/v1/models'], async (_req, res) => {
     try {
         const responses = await Promise.all([qwenUrl, deepSeekUrl].map(url => fetch(`${url}/models`)));

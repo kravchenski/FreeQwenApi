@@ -12,8 +12,15 @@ services:
     ports:
       - "${GATEWAY_PORT:-3263}:3263"
     depends_on:
-      - qwen-proxy
-      - deepseek-proxy
+      qwen-proxy:
+        condition: service_healthy
+      deepseek-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "bun", "-e", "const r=await fetch('http://127.0.0.1:3263/ready');process.exit(r.ok?0:1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
 
   qwen-proxy:
@@ -32,6 +39,11 @@ services:
       - ./logs:/app/logs
       - ./uploads:/app/uploads
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bun", "-e", "const r=await fetch('http://127.0.0.1:3264/api/models');process.exit(r.ok?0:1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
 
   deepseek-proxy:
     build:
@@ -48,3 +60,8 @@ services:
       - ./session:/app/session
       - ./logs:/app/logs
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bun", "-e", "const r=await fetch('http://127.0.0.1:3265/health');process.exit(r.ok?0:1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
