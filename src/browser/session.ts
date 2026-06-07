@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { logInfo, logError, logWarn } from '../logger/index.ts';
+import { logInfo, logError } from '../logger/index.ts';
 import { SESSION_DIR } from '../config.ts';
 
 const SESSION_PATH = path.resolve(process.cwd(), SESSION_DIR);
@@ -16,7 +16,7 @@ function ensureDir(dirPath) {
     if (!fs.existsSync(dirPath)) fs.mkdirSync(dirPath, { recursive: true });
 }
 
-export function initSessionDirectory() {
+function initSessionDirectory() {
     ensureDir(SESSION_PATH);
 }
 
@@ -49,58 +49,6 @@ export async function saveSession(context, accountId = null) {
         logError('Ошибка при сохранении сессии', error);
         return false;
     }
-}
-
-export async function loadSession(context, accountId = null) {
-    try {
-        const isPuppeteer = context && typeof context.goto === 'function';
-        const isPlaywright = context && typeof context.storageState === 'function';
-
-        if (isPuppeteer) {
-            const sessionPath = getSessionFilePath(accountId, 'cookies.json');
-            if (fs.existsSync(sessionPath)) {
-                const cookies = JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
-                await context.setCookie(...cookies);
-                logInfo('Сессия Puppeteer загружена');
-                return true;
-            }
-        } else if (isPlaywright) {
-            const sessionPath = getSessionFilePath(accountId, 'state.json');
-            if (fs.existsSync(sessionPath)) {
-                await context.storageState({ path: sessionPath });
-                logInfo('Сессия Playwright загружена');
-                return true;
-            }
-        }
-    } catch (error) {
-        logError('Ошибка при загрузке сессии', error);
-    }
-    return false;
-}
-
-export function clearSession(accountId = null) {
-    try {
-        const paths = [
-            getSessionFilePath(accountId, 'state.json'),
-            getSessionFilePath(accountId, 'cookies.json')
-        ];
-        let cleared = false;
-        for (const p of paths) {
-            if (fs.existsSync(p)) { fs.unlinkSync(p); cleared = true; }
-        }
-        if (cleared) logInfo('Сессия очищена');
-        return cleared;
-    } catch (error) {
-        logError('Ошибка при очистке сессии', error);
-        return false;
-    }
-}
-
-export function hasSession(accountId = null) {
-    return [
-        getSessionFilePath(accountId, 'state.json'),
-        getSessionFilePath(accountId, 'cookies.json')
-    ].some(p => fs.existsSync(p));
 }
 
 export function saveAuthToken(token) {

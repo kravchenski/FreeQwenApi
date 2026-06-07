@@ -28,7 +28,7 @@ export function loadDeepSeekAccounts(): DeepSeekAccount[] {
     }
 }
 
-export function saveDeepSeekAccounts(accounts: DeepSeekAccount[]) {
+function saveDeepSeekAccounts(accounts: DeepSeekAccount[]) {
     ensureStorage();
     fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2), 'utf8');
 }

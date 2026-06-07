@@ -127,7 +127,7 @@ export const pagePool = {
 };
 
 
-export async function pollTaskStatus(taskId, page, token, maxAttempts = TASK_POLL_MAX_ATTEMPTS, interval = TASK_POLL_INTERVAL) {
+async function pollTaskStatus(taskId, page, token, maxAttempts = TASK_POLL_MAX_ATTEMPTS, interval = TASK_POLL_INTERVAL) {
     logInfo(`Начинаем опрос статуса задачи: ${taskId}`);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -259,7 +259,7 @@ function getAuthKeysFromFile() {
     }
 }
 
-export function isValidModel(modelName) {
+function isValidModel(modelName) {
     if (!availableModels) availableModels = getAvailableModelsFromFile();
     return availableModels.includes(modelName);
 }

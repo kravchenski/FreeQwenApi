@@ -60,19 +60,6 @@ export async function addAccountInteractive() {
     return id;
 }
 
-export async function interactiveAccountMenu() {
-    while (true) {
-        console.log('\n=== Меню управления аккаунтами ===');
-        console.log(formatForgetMeAiWatermark());
-        console.log('1 - Добавить новый аккаунт');
-        console.log('2 - Завершить');
-        const choice = await prompt('Ваш выбор (1/2): ');
-        if (choice === '1') await addAccountInteractive();
-        else if (choice === '2') break;
-        else console.log('Неверный выбор.');
-    }
-}
-
 export async function reloginAccountInteractive() {
     const tokens = loadTokens();
     const invalids = tokens.filter(t => t.invalid);

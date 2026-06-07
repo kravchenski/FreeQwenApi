@@ -227,7 +227,7 @@ const buildModelMapping = () => {
     return Object.freeze(mapping);
 };
 
-export const MODEL_MAPPING = buildModelMapping();
+const MODEL_MAPPING = buildModelMapping();
 
 export function getMappedModel(requestedModel, defaultModel = DEFAULT_MODEL) {
     if (!requestedModel) return defaultModel;

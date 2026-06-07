@@ -81,6 +81,3 @@ export const logError = (message, error) => {
 export const logWarn = (message) => logger.warn(message);
 export const logDebug = (message) => logger.debug(message);
 export const logRaw = (message) => logger.raw(message);
-export const logHttp = (message) => logger.http(message);
-
-export default { logHttpRequest, logInfo, logError, logWarn, logDebug, logRaw, logHttp };

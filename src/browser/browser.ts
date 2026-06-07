@@ -16,7 +16,7 @@ puppeteer.use(StealthPlugin());
 
 let browserInstance = null;
 let browserContext = null;
-export let isAuthenticated = false;
+let isAuthenticated = false;
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 

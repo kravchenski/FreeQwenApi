@@ -68,7 +68,7 @@ export async function getStsToken(fileInfo) {
     }
 }
 
-export async function uploadFile(filePath, stsData) {
+async function uploadFile(filePath, stsData) {
     const browserContext = validateBrowserContext();
     logInfo(`Начало загрузки файла: ${filePath}`);
 
@@ -151,5 +151,3 @@ export async function uploadFileToQwen(filePath) {
         return { success: false, error: error.message };
     }
 }
-
-export default { getStsToken, uploadFile, uploadFileToQwen };

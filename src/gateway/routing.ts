@@ -1,4 +1,4 @@
-export const DEEPSEEK_MODEL_PREFIX = 'deepseek-';
+const DEEPSEEK_MODEL_PREFIX = 'deepseek-';
 
 export function targetForModel(model: unknown, qwenUrl: string, deepSeekUrl: string) {
     return typeof model === 'string' && model.startsWith(DEEPSEEK_MODEL_PREFIX) ? deepSeekUrl : qwenUrl;
