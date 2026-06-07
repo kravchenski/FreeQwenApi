@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 import { prompt } from '../../utils/prompt.ts';
+import { requireBrowserExecutable } from '../../platform/browserExecutable.ts';
 import {
     addDeepSeekAccount,
     loadDeepSeekAccounts,
@@ -33,7 +34,10 @@ async function waitForDebugBrowser() {
 
 async function launchUserBrowser() {
     fs.mkdirSync(profileDir, { recursive: true });
-    const executable = process.env.DEEPSEEK_CHROME_PATH || process.env.CHROME_PATH || '/usr/bin/chromium';
+    const executable = requireBrowserExecutable({
+        interactive: true,
+        preferredEnvKeys: ['DEEPSEEK_CHROME_PATH', 'CHROME_PATH']
+    });
     const processHandle = spawn(executable, [
         `--remote-debugging-port=${debugPort}`,
         `--user-data-dir=${profileDir}`,

@@ -11,6 +11,7 @@ import {
     VIEWPORT_WIDTH, VIEWPORT_HEIGHT, USER_AGENT,
     SESSION_DIR, ACCOUNTS_DIR
 } from '../config.ts';
+import { findBrowserExecutable } from '../platform/browserExecutable.ts';
 
 puppeteer.use(StealthPlugin());
 
@@ -28,7 +29,7 @@ export async function initBrowser(visibleMode = true, skipManualRestart = false)
         browserInstance = await puppeteer.launch({
             headless: !visibleMode,
             slowMo: visibleMode ? 30 : 0,
-            executablePath: process.env.CHROME_PATH || undefined,
+            executablePath: findBrowserExecutable() || undefined,
             args: [
                 '--no-sandbox', '--disable-setuid-sandbox',
                 '--disable-blink-features=AutomationControlled',
