@@ -11,7 +11,7 @@
 [![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)](#api-reference)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[Quick start](#quick-start) · [DeepSeek](#deepseek-web) · [Kimi](#kimi-web) · [AI agents](#ai-agent-setup) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
+[Quick start](#quick-start) · [Providers](#provider-map) · [Docker](#docker) · [Agents](#ai-agent-setup) · [API](#api-reference) · [Security](#security) · [Docs](#documentation)
 
 </div>
 
@@ -44,26 +44,44 @@ SDKs, and other compatible clients.
 - **Docker image** based on Bun and system Chromium.
 - **CI/CD** for tests, Bun build validation, Docker builds, and GHCR releases.
 
+## Provider Map
+
+Run one provider directly, or connect clients to the unified gateway and switch
+models without changing the base URL.
+
+| Service | Local endpoint | Container image | Example model |
+| --- | --- | --- | --- |
+| Unified gateway | `http://127.0.0.1:3263/api` | `ghcr.io/kravchenski/freeqwenapi/gateway` | Routes all models |
+| Qwen Chat | `http://127.0.0.1:3264/api` | `ghcr.io/kravchenski/freeqwenapi/qwen` | `qwen3-coder-plus` |
+| DeepSeek Web | `http://127.0.0.1:3265/api` | `ghcr.io/kravchenski/freeqwenapi/deepseek` | `deepseek-reasoner` |
+| Kimi Web | `http://127.0.0.1:3266/api` | `ghcr.io/kravchenski/freeqwenapi/kimi` | `kimi-k2.6-thinking` |
+
 ## How It Works
 
-```text
-OpenAI-compatible client
-         |
-         +--> Unified gateway http://127.0.0.1:3263/api
-         |      |
-         |      +--> Qwen proxy     http://127.0.0.1:3264/api
-         |      |
-         |      +--> Qwen Chat web API
-         |
-         +------> DeepSeek proxy http://127.0.0.1:3265/api --> DeepSeek Web API + PoW
-         |
-         +------> Kimi proxy     http://127.0.0.1:3266/api --> Kimi Web Connect API
+```mermaid
+flowchart LR
+    Client["AI agent / OpenAI client"] --> Gateway["Unified gateway<br/>:3263"]
+    Gateway --> Qwen["Qwen proxy<br/>:3264"]
+    Gateway --> DeepSeek["DeepSeek proxy<br/>:3265"]
+    Gateway --> Kimi["Kimi proxy<br/>:3266"]
+    Qwen --> QwenWeb["Qwen Chat"]
+    DeepSeek --> DeepSeekWeb["DeepSeek Web + PoW"]
+    Kimi --> KimiWeb["Kimi Web Connect API"]
 ```
 
 The proxy keeps authentication data locally under `session/`. Requests are mapped
-to Qwen Chat models and translated back into OpenAI-compatible responses.
+to the selected provider and translated back into OpenAI-compatible responses.
 
 ## Quick Start
+
+Choose the path that matches how you want to use the project:
+
+| Goal | Start command | Client base URL |
+| --- | --- | --- |
+| Try Qwen locally | `bun run start:full` | `http://127.0.0.1:3264/api` |
+| Run DeepSeek only | `bun run start:deepseek:full` | `http://127.0.0.1:3265/api` |
+| Run Kimi only | `bun run start:kimi:full` | `http://127.0.0.1:3266/api` |
+| Run every provider with Docker after authentication | `docker compose up --build -d` | `http://127.0.0.1:3263/api` |
 
 ### Requirements
 
@@ -130,9 +148,9 @@ curl http://127.0.0.1:3264/api/chat/completions \
   }'
 ```
 
-### OpenAI JavaScript SDK
+### OpenAI SDK with TypeScript
 
-```js
+```ts
 import OpenAI from "openai";
 
 const qwen = new OpenAI({
@@ -150,7 +168,7 @@ console.log(response.choices[0].message.content);
 
 ### Streaming
 
-```js
+```ts
 const stream = await qwen.chat.completions.create({
   model: "qwen3.7-plus",
   messages: [{ role: "user", content: "Write a short Bun example." }],
@@ -501,6 +519,17 @@ Advanced endpoint, timeout, logging, and polling options are defined in
 
 ## Docker
 
+Compose runs four isolated services. The gateway has no browser credentials and
+only routes requests; every provider keeps its own process, health check, and
+GHCR image.
+
+| Compose service | Host port | Purpose |
+| --- | --- | --- |
+| `gateway` | `3263` | One OpenAI-compatible endpoint for every provider |
+| `qwen-proxy` | `3264` | Qwen browser-backed proxy |
+| `deepseek-proxy` | `3265` | DeepSeek Web proxy |
+| `kimi-proxy` | `3266` | Kimi Web proxy |
+
 ### Start After Git Clone
 
 Authentication must run on the host because production containers do not have
@@ -543,10 +572,10 @@ approximately `1.03 GB`. Most remaining space belongs to Chromium and its
 required browser runtime libraries. Exact sizes vary by architecture and
 package updates.
 
-Inspect the built image:
+Inspect the built images:
 
 ```bash
-docker image ls freeqwenapi:latest free-ai-light:latest
+docker image ls freeqwenapi:latest deepseek-web-proxy:latest kimi-web-proxy:latest free-ai-gateway:latest
 docker history freeqwenapi:latest
 docker run --rm --entrypoint /usr/bin/chromium-headless-shell \
   freeqwenapi:latest --version
@@ -753,13 +782,16 @@ Refresh metadata with `bun run models:sync`, or add the model to
 
 ## Documentation
 
-- [`docs/PLATFORM_SUPPORT.md`](docs/PLATFORM_SUPPORT.md) - Linux, macOS, Windows, browsers, and Docker
-- [`docs/FORK_DEMO_QUICKSTART.md`](docs/FORK_DEMO_QUICKSTART.md) - demo-oriented quick start
-- [`docs/OPENWEBUI_SETUP.md`](docs/OPENWEBUI_SETUP.md) - Open WebUI setup
-- [`docs/QWEN_CHAT_MODELS.md`](docs/QWEN_CHAT_MODELS.md) - model synchronization notes
-- [`docs/IMAGE_GENERATION.md`](docs/IMAGE_GENERATION.md) - image-generation details
-- [`examples/README.md`](examples/README.md) - JavaScript and Python examples
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) - development and pull-request requirements
+| Guide | What it covers |
+| --- | --- |
+| [`AI agent integrations`](docs/AGENT_INTEGRATIONS.md) | Pi, OpenCode, Continue, Hermes, Aider, Cline, Codex, and Claude Code |
+| [`Platform support`](docs/PLATFORM_SUPPORT.md) | Linux, macOS, Windows, supported browsers, and Docker |
+| [`Open WebUI setup`](docs/OPENWEBUI_SETUP.md) | Connect Open WebUI to the proxy |
+| [`Image and video generation`](docs/IMAGE_GENERATION.md) | Media endpoints, models, and request formats |
+| [`Qwen model synchronization`](docs/QWEN_CHAT_MODELS.md) | Refresh and maintain the Qwen model list |
+| [`Examples`](examples/README.md) | TypeScript, Python, Hermes, LiteLLM, and Pi examples |
+| [`Contributing`](CONTRIBUTING.md) | Development checks and pull-request requirements |
+| [`Security policy`](SECURITY.md) | Private vulnerability reporting |
 
 ## Disclaimer
 

@@ -1,151 +1,68 @@
-# Примеры использования FreeQwenApi
+# Примеры FreeQwenApi
 
-В этой директории собраны примеры использования API-прокси для Qwen AI.
+Здесь собраны готовые примеры для OpenAI-совместимого API FreeQwenApi:
+TypeScript, Python, Pi Agent, Hermes Agent и LiteLLM.
 
 ## Установка и запуск
 
-Установка зависимостей производится в корневой директории проекта:
-
 ```bash
-# В корневой директории проекта
 bun install
+docker compose up -d
 ```
 
-Перед запуском примеров убедитесь, что сервер FreeQwenApi запущен и доступен по адресу `http://localhost:3264`.
+По умолчанию TypeScript-примеры обращаются напрямую к Qwen по адресу
+`http://127.0.0.1:3264/api`. Для работы через единый gateway используйте
+`http://127.0.0.1:3263/api`.
 
-```bash
-# Запуск сервера
-bun start
+## Быстрый выбор
 
-# В отдельном терминале запустите примеры
-bun run example:simple
-bun run example:stream
-# и т.д.
-```
+| Задача | Команда |
+| --- | --- |
+| Простой запрос через OpenAI SDK | `bun run example:simple` |
+| Потоковый ответ | `bun run example:stream` |
+| Системное сообщение | `bun run example:system` |
+| Диалог с контекстом | `bun run example:conversation` |
+| Анализ изображения | `bun run example:image` |
+| Проверка OpenAI-совместимости | `bun run example:compatibility` |
+| Прямой запрос через `fetch` | `bun run example:direct` |
+| Прямой запрос через Axios | `bun run example:axios` |
+| Загрузка файла | `bun run example:file-upload` |
 
-## Примеры с использованием OpenAI SDK
+Исходники TypeScript находятся в [`openai-sdk/`](openai-sdk/),
+[`direct-api/`](direct-api/) и [`file-upload/`](file-upload/).
 
-### 1. Простой запрос (не потоковый)
+## Python
 
-```bash
-bun run example:simple
-```
+### OpenAI SDK
 
-Демонстрирует отправку простого запроса к Qwen AI с использованием OpenAI SDK.
-
-### 2. Потоковый запрос
-
-```bash
-bun run example:stream
-```
-
-Показывает, как получать ответ в потоковом режиме, где токены приходят по мере их генерации.
-
-### 3. Запрос с системным сообщением
-
-```bash
-bun run example:system
-```
-
-Пример использования системного сообщения для задания роли и инструкций модели.
-
-### 4. Анализ изображения
-
-```bash
-bun run example:image
-```
-
-Демонстрация отправки изображения для анализа моделью (требуется заменить URL изображения в примере).
-
-### 5. Диалог с несколькими сообщениями
-
-```bash
-bun run example:conversation
-```
-
-Пример поддержания диалога из нескольких сообщений с сохранением контекста.
-
-### 6. Совместимость с OpenAI API
-
-```bash
-bun run example:compatibility
-```
-
-Демонстрация полной совместимости с форматом API OpenAI.
-
-## Примеры прямого использования API
-
-### 1. Запрос с использованием fetch
-
-```bash
-bun run example:direct
-```
-
-Пример отправки прямого запроса к API без использования SDK, с использованием нативного fetch.
-
-### 2. Запрос с использованием axios
-
-```bash
-bun run example:axios
-```
-
-Пример использования библиотеки axios для отправки запросов к API.
-
-## Модификация примеров
-
-Вы можете модифицировать примеры для своих нужд:
-
-1. Изменяйте запросы и параметры в файлах примеров
-2. Попробуйте различные модели (список доступен через `/api/models`)
-3. Экспериментируйте с разными форматами запросов
-
-### Python OpenAI SDK примеры
-
-Установите зависимости:
 ```bash
 pip install openai
-```
-
-Запуск:
-```bash
 python examples/python-sdk/simple.py
 python examples/python-sdk/streaming.py
-python examples/python-sdk/system_message.py
-python examples/python-sdk/image_analysis.py
-python examples/python-sdk/conversation.py
-python examples/python-sdk/openai_compatibility.py
 ```
 
-### Python direct API примеры (httpx)
+### Прямые запросы через HTTPX
 
-Установите зависимости:
 ```bash
 pip install httpx
-```
-
-Запуск:
-```bash
 python examples/python-direct/httpx_example.py
 python examples/python-direct/httpx_streaming.py
 ```
 
-## Работа с изображениями
+## Агенты и мосты
 
-Для примеров с изображениями необходимо:
+Готовые конфигурации находятся в:
 
-1. Загрузить изображение в официальном веб-интерфейсе Qwen
-2. Получить URL изображения из сетевых запросов (см. инструкцию в README.md основного проекта)
-3. Заменить `IMAGE_URL` в примере на полученный URL
+- [`pi-agent/`](pi-agent/) — запуск Pi через единый gateway;
+- [`hermes/`](hermes/) — конфигурация custom provider;
+- [`litellm/`](litellm/) — мост для Codex и Claude Code.
 
-## Дополнительная информация
-
-Готовые конфигурации для Hermes и LiteLLM находятся в `examples/hermes/` и
-`examples/litellm/`. Для автоматической настройки Pi Agent, OpenCode, Continue,
-Hermes, Aider, Cline, Codex и Claude Code используйте:
+Автоматическая настройка поддерживаемых агентов:
 
 ```bash
 bun run setup:agents -- --dry-run
 bun run setup:agents
 ```
 
-Подробная документация API доступна в README.md основного проекта.
+Полная документация находится в [главном README](../README.md) и
+[`docs/AGENT_INTEGRATIONS.md`](../docs/AGENT_INTEGRATIONS.md).
