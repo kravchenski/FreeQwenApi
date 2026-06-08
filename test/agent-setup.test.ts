@@ -45,6 +45,8 @@ describe('agent integration setup', () => {
             await writeFile(paths.pi, `${JSON.stringify({ theme: 'dark', providers: { existing: {} } })}\n`);
             await mkdir(join(home, '.continue'), { recursive: true });
             await writeFile(paths.continue, 'name: Existing\nversion: 1.0.0\nschema: v1\nrules:\n  - Keep this\n');
+            await mkdir(join(home, '.codex'), { recursive: true });
+            await writeFile(paths.codex, 'approval_policy = "on-request"\n');
 
             const results = await installAgentIntegrations(options, models);
             expect(results.some(result => result.agent === 'codex' && result.status === 'installed')).toBeTrue();
@@ -69,6 +71,8 @@ describe('agent integration setup', () => {
 
             expect(await readFile(`${paths.pi}.freeqwenapi.bak`, 'utf8')).toContain('"theme":"dark"');
             expect(await readFile(paths.codex, 'utf8')).toContain('wire_api = "responses"');
+            expect(await readFile(paths.codex, 'utf8')).toContain('approval_policy = "on-request"');
+            expect(await readFile(paths.codex, 'utf8')).toContain('[profiles.freeai]');
             expect(await readFile(paths.claude, 'utf8')).toContain('ANTHROPIC_BASE_URL');
 
             const secondResults = await installAgentIntegrations(options, models);

@@ -12,7 +12,7 @@ try {
         process.exit(0);
     }
 
-    const modelIds = await loadAvailableModelIds(options.baseUrl);
+    const modelIds = await loadAvailableModelIds(options.baseUrl, options.apiKey);
     const results = await installAgentIntegrations(options, modelIds);
 
     console.log(`${options.dryRun ? 'Planned' : 'Configured'} ${options.agents.length} agent integrations with ${modelIds.length} models.`);

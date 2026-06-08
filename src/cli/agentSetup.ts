@@ -90,9 +90,10 @@ export function parseAgentSetupArgs(
     return options;
 }
 
-export async function loadAvailableModelIds(baseUrl: string): Promise<string[]> {
+export async function loadAvailableModelIds(baseUrl: string, apiKey?: string): Promise<string[]> {
     try {
         const response = await fetch(`${trimTrailingSlash(baseUrl)}/models`, {
+            headers: apiKey ? { authorization: `Bearer ${apiKey}` } : undefined,
             signal: AbortSignal.timeout(2500)
         });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -109,7 +110,17 @@ export async function loadAvailableModelIds(baseUrl: string): Promise<string[]> 
         .split('\n')
         .map(line => line.trim())
         .filter(line => line && !line.startsWith('#'));
-    return [...new Set([...qwen, 'deepseek-default', 'deepseek-reasoner', 'deepseek-expert', 'deepseek-search'])];
+    return [...new Set([
+        ...qwen,
+        'deepseek-default',
+        'deepseek-reasoner',
+        'deepseek-expert',
+        'deepseek-search',
+        'kimi-k2.6',
+        'kimi-k2.6-thinking',
+        'kimi-k2.6-search',
+        'kimi-k2.6-thinking-search'
+    ])];
 }
 
 export async function installAgentIntegrations(
@@ -154,7 +165,7 @@ export async function installAgentIntegrations(
         }), options, 'aider'));
     }
     if (options.agents.includes('codex')) {
-        results.push(await writeGeneratedFile(
+        results.push(await updateManagedTextFile(
             paths.codex,
             codexProfile(options, preferredModel(modelIds)),
             options,
@@ -205,7 +216,7 @@ export function integrationPaths(home: string) {
         aider: join(home, '.aider.freeqwenapi.yml'),
         claude: join(home, '.claude', 'freeai-settings.json'),
         cline: join(bundle, 'cline-auth.txt'),
-        codex: join(home, '.codex', 'freeai.config.toml'),
+        codex: join(home, '.codex', 'config.toml'),
         continue: join(home, '.continue', 'config.yaml'),
         generic: join(bundle, 'openai.env'),
         hermes: join(home, '.hermes', 'config.yaml'),
@@ -274,7 +285,7 @@ function freeModel(id: string) {
     return {
         id,
         name: `Free ${displayName(id)}`,
-        reasoning: id === 'deepseek-reasoner',
+        reasoning: id === 'deepseek-reasoner' || id.includes('kimi-k2.6-thinking'),
         input: ['text'],
         contextWindow: 131072,
         maxTokens: 16384,
@@ -309,7 +320,7 @@ function mergeOpenCodeConfig(current: Record<string, any>, options: AgentSetupOp
     config.provider = { ...(current.provider || {}) };
     config.provider.freeai = {
         npm: '@ai-sdk/openai-compatible',
-        name: 'FreeAI (Qwen + DeepSeek)',
+        name: 'FreeAI (Qwen + DeepSeek + Kimi)',
         options: {
             baseURL: options.baseUrl,
             apiKey: options.apiKey
@@ -365,6 +376,7 @@ function mergeHermesConfig(current: Record<string, any>, options: AgentSetupOpti
 
 function codexProfile(options: AgentSetupOptions, model: string) {
     return `# Codex requires an OpenAI Responses endpoint. Start LiteLLM with ~/.freeqwenapi/litellm.yaml.
+[profiles.freeai]
 model = "${model}"
 model_provider = "freeai"
 
@@ -374,6 +386,21 @@ base_url = "${options.bridgeUrl}/v1"
 env_key = "FREEAI_API_KEY"
 wire_api = "responses"
 `;
+}
+
+const MANAGED_BLOCK_START = '# >>> FreeQwenApi managed block >>>';
+const MANAGED_BLOCK_END = '# <<< FreeQwenApi managed block <<<';
+
+function mergeManagedBlock(existing: string, content: string) {
+    const block = `${MANAGED_BLOCK_START}\n${content.trim()}\n${MANAGED_BLOCK_END}\n`;
+    const start = existing.indexOf(MANAGED_BLOCK_START);
+    const end = existing.indexOf(MANAGED_BLOCK_END);
+
+    if (start >= 0 && end >= start) {
+        const suffixStart = end + MANAGED_BLOCK_END.length;
+        return `${existing.slice(0, start)}${block}${existing.slice(suffixStart).replace(/^\n+/, '')}`;
+    }
+    return existing.trim() ? `${existing.trimEnd()}\n\n${block}` : block;
 }
 
 function claudeSettings(options: AgentSetupOptions) {
@@ -513,6 +540,21 @@ async function updateYamlFile(
         }
     }
     return writeGeneratedFile(path, stringifyYaml(merge(current)), options, agent);
+}
+
+async function updateManagedTextFile(
+    path: string,
+    content: string,
+    options: AgentSetupOptions,
+    agent: AgentId
+): Promise<InstallResult> {
+    let existing = '';
+    try {
+        existing = await readFile(path, 'utf8');
+    } catch (error) {
+        if (!isMissingFile(error)) throw error;
+    }
+    return writeGeneratedFile(path, mergeManagedBlock(existing, content), options, agent);
 }
 
 async function writeGeneratedFile(

@@ -2,7 +2,7 @@
 
 # FreeQwenApi
 
-**Turn Qwen Chat and DeepSeek Web into local OpenAI-compatible APIs for agents, apps, and experiments.**
+**Turn Qwen Chat, DeepSeek Web, and Kimi Web into local OpenAI-compatible APIs for agents, apps, and experiments.**
 
 [![CI](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml)
 [![Container](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml)
@@ -11,21 +11,22 @@
 [![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)](#api-reference)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-[Quick start](#quick-start) · [DeepSeek](#deepseek-web) · [AI agents](#ai-agent-setup) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
+[Quick start](#quick-start) · [DeepSeek](#deepseek-web) · [Kimi](#kimi-web) · [AI agents](#ai-agent-setup) · [API reference](#api-reference) · [Docker](#docker) · [Security](#security)
 
 </div>
 
 FreeQwenApi is an unofficial, browser-backed proxy for
-[Qwen Chat](https://chat.qwen.ai/) and [DeepSeek Web](https://chat.deepseek.com/).
+[Qwen Chat](https://chat.qwen.ai/), [DeepSeek Web](https://chat.deepseek.com/),
+and [Kimi Web](https://www.kimi.com/).
 It preserves authenticated browser sessions and exposes local APIs compatible
 with OpenAI Chat Completions.
 
-Use it to connect Qwen Chat and DeepSeek Web to **Pi Agent**, OpenCode,
+Use it to connect Qwen Chat, DeepSeek Web, and Kimi Web to **Pi Agent**, OpenCode,
 Continue, Hermes Agent, Aider, Cline, Codex, Claude Code, Open WebUI, OpenAI
 SDKs, and other compatible clients.
 
 > [!IMPORTANT]
-> This project is not an official Alibaba Cloud, Qwen, or DeepSeek API, and it
+> This project is not an official Alibaba Cloud, Qwen, DeepSeek, or Moonshot AI API, and it
 > does not run models locally. Provider web APIs, rate limits, and account
 > behavior can change at any time. Use official provider APIs for production.
 
@@ -38,6 +39,7 @@ SDKs, and other compatible clients.
 - **Conversation continuity** with chat IDs, parent IDs, and scoped sessions.
 - **Current Qwen model discovery** from Qwen Chat metadata.
 - **DeepSeek Web support** with PoW solving, reasoning mode, and persistent sessions.
+- **Kimi Web support** with reasoning, web search, and persistent sessions.
 - **Bun-first runtime** with a reproducible `bun.lock`.
 - **Docker image** based on Bun and system Chromium.
 - **CI/CD** for tests, Bun build validation, Docker builds, and GHCR releases.
@@ -53,9 +55,9 @@ OpenAI-compatible client
          |      |
          |      +--> Qwen Chat web API
          |
-         +------> DeepSeek proxy http://127.0.0.1:3265/api
-                |
-                +--> DeepSeek Web API + PoW
+         +------> DeepSeek proxy http://127.0.0.1:3265/api --> DeepSeek Web API + PoW
+         |
+         +------> Kimi proxy     http://127.0.0.1:3266/api --> Kimi Web Connect API
 ```
 
 The proxy keeps authentication data locally under `session/`. Requests are mapped
@@ -222,6 +224,28 @@ DeepSeek presets:
 | `deepseek-expert` | Expert model route |
 | `deepseek-search` | Web-search-enabled route |
 
+## Kimi Web
+
+Kimi runs as a separate browser-authenticated proxy using the current Kimi Web
+Connect/JSON protocol.
+
+```bash
+bun run start:kimi:full
+```
+
+Manage accounts directly:
+
+```bash
+bun run auth:kimi -- --list
+bun run auth:kimi -- --add
+bun run auth:kimi -- --relogin
+bun run auth:kimi -- --remove
+```
+
+The Kimi API is available at `http://127.0.0.1:3266/api`. Available presets are
+`kimi-k2.6`, `kimi-k2.6-thinking`, `kimi-k2.6-search`, and
+`kimi-k2.6-thinking-search`.
+
 ## AI Agent Setup
 
 Configure the supported agents with one safe, cross-platform command:
@@ -246,7 +270,7 @@ matrix, generated paths, and launch commands.
 
 ### Pi Agent
 
-FreeQwenApi exposes Qwen and DeepSeek through one `freeai` provider. Pi can
+FreeQwenApi exposes Qwen, DeepSeek, and Kimi through one `freeai` provider. Pi can
 switch between all available models with `/model` while keeping its local
 session and each provider's native remote chat stable.
 
@@ -256,7 +280,7 @@ docker compose up -d
 pi --provider freeai --model qwen3-coder-plus
 ```
 
-`bun run setup:pi` synchronizes all Qwen and DeepSeek models into
+`bun run setup:pi` synchronizes all Qwen, DeepSeek, and Kimi models into
 `~/.pi/agent/models.json`. The unified endpoint is
 `http://127.0.0.1:3263/api`. See
 [`examples/pi-agent/README.md`](examples/pi-agent/README.md) for details.
@@ -427,6 +451,9 @@ DeepSeek accounts are stored separately under `session/deepseek/` and managed
 with `bun run auth:deepseek`. Multiple valid DeepSeek accounts are also selected
 round-robin.
 
+Kimi accounts are stored separately under `session/kimi/` and managed with
+`bun run auth:kimi`. Multiple valid Kimi accounts are selected round-robin.
+
 To protect the local proxy itself, add allowed bearer tokens to
 `src/Authorization.txt`, one token per line. An empty or missing file disables
 proxy-level authentication.
@@ -445,6 +472,12 @@ Create a local `.env` or export environment variables before starting the proxy.
 | `DEEPSEEK_BROWSER_PROFILE` | `session/deepseek/browser-profile` | Persistent DeepSeek browser profile |
 | `DEEPSEEK_SESSION_DIR` | `session/deepseek` | Saved DeepSeek accounts and cookies |
 | `DEEPSEEK_TOKEN` | unset | Optional non-interactive DeepSeek token fallback |
+| `KIMI_PORT` | `3266` | Kimi proxy HTTP port |
+| `KIMI_BASE_URL` | `https://www.kimi.com` | Kimi Web origin |
+| `KIMI_CHROME_PATH` | auto-detected | Interactive browser used for Kimi registration |
+| `KIMI_BROWSER_PROFILE` | `session/kimi/browser-profile` | Persistent Kimi browser profile |
+| `KIMI_SESSION_DIR` | `session/kimi` | Saved Kimi accounts and remote chat mappings |
+| `KIMI_TOKEN` | unset | Optional non-interactive Kimi access token fallback |
 | `DEFAULT_MODEL` | `qwen-max-latest` | Default chat model |
 | `SKIP_ACCOUNT_MENU` | `false` | Start without the interactive account menu |
 | `NON_INTERACTIVE` | `false` | Alias for non-interactive startup |
@@ -468,18 +501,32 @@ Advanced endpoint, timeout, logging, and polling options are defined in
 
 ## Docker
 
-Authenticate locally first because the production container has no interactive GUI:
+### Start After Git Clone
+
+Authentication must run on the host because production containers do not have
+an interactive desktop browser:
 
 ```bash
+git clone https://github.com/kravchenski/FreeQwenApi.git
+cd FreeQwenApi
+
+bun install --frozen-lockfile
 bun run auth
+bun run auth:deepseek -- --add
+bun run auth:kimi -- --add
+
 mkdir -p session logs uploads
 docker compose up --build -d
-docker compose logs -f qwen-proxy
+docker compose ps
+curl http://127.0.0.1:3263/ready
 ```
+
+All providers must have a valid account before the unified gateway becomes
+ready. Provider credentials stay under the ignored local `session/` directory.
 
 The Compose configuration persists:
 
-- `./session` for Qwen and DeepSeek authentication and remote chat mappings
+- `./session` for Qwen, DeepSeek, and Kimi authentication and remote chat mappings
 - `./logs` for application logs
 - `./uploads` for temporary uploads
 
@@ -499,10 +546,10 @@ package updates.
 Inspect the built image:
 
 ```bash
-docker image ls qwen-api-proxy:latest
-docker history qwen-api-proxy:latest
+docker image ls freeqwenapi:latest free-ai-light:latest
+docker history freeqwenapi:latest
 docker run --rm --entrypoint /usr/bin/chromium-headless-shell \
-  qwen-api-proxy:latest --version
+  freeqwenapi:latest --version
 ```
 
 If the container exits with `Не найдено ни одного аккаунта`, run
@@ -511,21 +558,40 @@ starting Compose.
 
 ### Published Image
 
-Tagged releases are published by GitHub Actions to GitHub Container Registry:
+GitHub Actions publishes two multi-architecture images to GitHub Container
+Registry:
 
 ```bash
-docker pull ghcr.io/kravchenski/freeqwenapi:latest
+docker pull ghcr.io/kravchenski/freeqwenapi/qwen:latest
+docker pull ghcr.io/kravchenski/freeqwenapi/light:latest
 ```
 
-Run it with an existing session directory:
+Use the published images with the same Compose file:
 
 ```bash
-docker run --rm -p 3264:3264 \
-  -e SKIP_ACCOUNT_MENU=true \
-  -v "$PWD/session:/app/session" \
-  -v "$PWD/logs:/app/logs" \
-  -v "$PWD/uploads:/app/uploads" \
-  ghcr.io/kravchenski/freeqwenapi:latest
+export FREEAI_QWEN_IMAGE=ghcr.io/kravchenski/freeqwenapi/qwen:latest
+export FREEAI_LIGHT_IMAGE=ghcr.io/kravchenski/freeqwenapi/light:latest
+docker compose pull
+docker compose up -d --no-build
+```
+
+Compose binds host ports to `127.0.0.1` by default. To require authentication
+on the unified gateway, set a strong token before startup:
+
+```bash
+export GATEWAY_API_KEY="$(openssl rand -hex 32)"
+docker compose up -d
+```
+
+### Add Codex
+
+The installer appends a managed `freeai` profile to the existing
+`~/.codex/config.toml` without replacing unrelated Codex settings:
+
+```bash
+bun run setup:agents -- --agent codex --api-key "${GATEWAY_API_KEY:-dummy-key}"
+litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
+FREEAI_API_KEY="${GATEWAY_API_KEY:-dummy-key}" codex -p freeai
 ```
 
 ## Development
@@ -551,12 +617,16 @@ Useful commands:
 | `bun start` | Start the proxy |
 | `bun run start:full` | Install, validate, authenticate, sync models, and start |
 | `bun run start:deepseek:full` | Install, validate, authenticate, and start DeepSeek |
+| `bun run start:kimi:full` | Install, validate, authenticate, and start Kimi |
 | `bun run dev` | Start with Bun watch mode |
 | `bun run auth` | Manage Qwen accounts |
 | `bun run start:deepseek` | Start the DeepSeek account menu and proxy |
 | `bun run dev:deepseek` | Start the DeepSeek proxy with Bun watch mode |
 | `bun run auth:deepseek` | Manage DeepSeek accounts |
-| `bun run start:gateway` | Start the unified Qwen + DeepSeek gateway |
+| `bun run start:kimi` | Start the Kimi account menu and proxy |
+| `bun run dev:kimi` | Start the Kimi proxy with Bun watch mode |
+| `bun run auth:kimi` | Manage Kimi accounts |
+| `bun run start:gateway` | Start the unified Qwen + DeepSeek + Kimi gateway |
 | `bun run setup:agents` | Configure popular AI agents and bridge profiles |
 | `bun run setup:pi` | Synchronize all models into Pi Agent |
 | `bun run models:sync` | Refresh Qwen model metadata |
