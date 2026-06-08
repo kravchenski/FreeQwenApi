@@ -2,7 +2,7 @@
 
 ## Sensitive Local Data
 
-FreeQwenApi stores authenticated provider state locally. Never publish:
+FreeKimiQwenDeepseekApi stores authenticated provider state locally. Never publish:
 
 - `session/`
 - browser profiles and cookies

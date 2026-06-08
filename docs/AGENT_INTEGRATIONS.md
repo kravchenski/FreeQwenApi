@@ -1,6 +1,6 @@
 # AI Agent Integrations
 
-FreeQwenApi includes one cross-platform setup command for popular coding agents:
+FreeKimiQwenDeepseekApi includes one cross-platform setup command for popular coding agents:
 
 ```text
 bun run setup:agents -- --dry-run
@@ -31,7 +31,7 @@ third-party agent executables.
 | Cursor | Limited | Generic settings are documented, but direct compatibility is not guaranteed |
 
 Codex uses the OpenAI Responses API and Claude Code uses the Anthropic Messages
-API. FreeQwenApi exposes OpenAI Chat Completions, so those two agents require the
+API. FreeKimiQwenDeepseekApi exposes OpenAI Chat Completions, so those two agents require the
 generated LiteLLM bridge configuration.
 
 ## Installer Options

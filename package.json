@@ -1,16 +1,16 @@
 {
-    "name": "qwen-api-proxy",
+    "name": "free-kimi-qwen-deepseek-api",
     "version": "1.0.0",
     "description": "Unified OpenAI-compatible gateway for Qwen Chat, DeepSeek Web, and Kimi Web",
     "author": "kravchenski",
     "license": "MIT",
-    "homepage": "https://github.com/kravchenski/FreeQwenApi#readme",
+    "homepage": "https://github.com/kravchenski/FreeKimiQwenDeepseekApi#readme",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/kravchenski/FreeQwenApi.git"
+        "url": "git+https://github.com/kravchenski/FreeKimiQwenDeepseekApi.git"
     },
     "bugs": {
-        "url": "https://github.com/kravchenski/FreeQwenApi/issues"
+        "url": "https://github.com/kravchenski/FreeKimiQwenDeepseekApi/issues"
     },
     "main": "index.ts",
     "type": "module",

@@ -1,12 +1,12 @@
 <div align="center">
 
-# FreeQwenApi
+# FreeKimiQwenDeepseekApi
 
 **Turn Qwen Chat, DeepSeek Web, and Kimi Web into local OpenAI-compatible APIs for agents, apps, and experiments.**
 
-[![CI](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/ci.yml)
-[![Container](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml/badge.svg)](https://github.com/kravchenski/FreeQwenApi/actions/workflows/release.yml)
-[![GitHub stars](https://img.shields.io/github/stars/kravchenski/FreeQwenApi?style=flat)](https://github.com/kravchenski/FreeQwenApi/stargazers)
+[![CI](https://github.com/kravchenski/FreeKimiQwenDeepseekApi/actions/workflows/ci.yml/badge.svg)](https://github.com/kravchenski/FreeKimiQwenDeepseekApi/actions/workflows/ci.yml)
+[![Container](https://github.com/kravchenski/FreeKimiQwenDeepseekApi/actions/workflows/release.yml/badge.svg)](https://github.com/kravchenski/FreeKimiQwenDeepseekApi/actions/workflows/release.yml)
+[![GitHub stars](https://img.shields.io/github/stars/kravchenski/FreeKimiQwenDeepseekApi?style=flat)](https://github.com/kravchenski/FreeKimiQwenDeepseekApi/stargazers)
 [![Bun](https://img.shields.io/badge/runtime-Bun-f9f1e1?logo=bun&logoColor=000)](https://bun.sh)
 [![OpenAI compatible](https://img.shields.io/badge/API-OpenAI%20compatible-412991)](#api-reference)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
@@ -15,7 +15,7 @@
 
 </div>
 
-FreeQwenApi is an unofficial, browser-backed proxy for
+FreeKimiQwenDeepseekApi is an unofficial, browser-backed proxy for
 [Qwen Chat](https://chat.qwen.ai/), [DeepSeek Web](https://chat.deepseek.com/),
 and [Kimi Web](https://www.kimi.com/).
 It preserves authenticated browser sessions and exposes local APIs compatible
@@ -51,10 +51,10 @@ models without changing the base URL.
 
 | Service | Local endpoint | Container image | Example model |
 | --- | --- | --- | --- |
-| Unified gateway | `http://127.0.0.1:3263/api` | `ghcr.io/kravchenski/freeqwenapi/gateway` | Routes all models |
-| Qwen Chat | `http://127.0.0.1:3264/api` | `ghcr.io/kravchenski/freeqwenapi/qwen` | `qwen3-coder-plus` |
-| DeepSeek Web | `http://127.0.0.1:3265/api` | `ghcr.io/kravchenski/freeqwenapi/deepseek` | `deepseek-reasoner` |
-| Kimi Web | `http://127.0.0.1:3266/api` | `ghcr.io/kravchenski/freeqwenapi/kimi` | `kimi-k2.6-thinking` |
+| Unified gateway | `http://127.0.0.1:3263/api` | `ghcr.io/kravchenski/freekimiqwendeepseekapi/gateway` | Routes all models |
+| Qwen Chat | `http://127.0.0.1:3264/api` | `ghcr.io/kravchenski/freekimiqwendeepseekapi/qwen` | `qwen3-coder-plus` |
+| DeepSeek Web | `http://127.0.0.1:3265/api` | `ghcr.io/kravchenski/freekimiqwendeepseekapi/deepseek` | `deepseek-reasoner` |
+| Kimi Web | `http://127.0.0.1:3266/api` | `ghcr.io/kravchenski/freekimiqwendeepseekapi/kimi` | `kimi-k2.6-thinking` |
 
 ## How It Works
 
@@ -96,8 +96,8 @@ Linux container runtime such as Docker Desktop. See
 ### Install and authenticate
 
 ```bash
-git clone https://github.com/kravchenski/FreeQwenApi.git
-cd FreeQwenApi
+git clone https://github.com/kravchenski/FreeKimiQwenDeepseekApi.git
+cd FreeKimiQwenDeepseekApi
 
 bun run start:full
 ```
@@ -141,7 +141,7 @@ curl http://127.0.0.1:3264/api/chat/completions \
     "messages": [
       {
         "role": "user",
-        "content": "Explain what FreeQwenApi does in one sentence."
+        "content": "Explain what FreeKimiQwenDeepseekApi does in one sentence."
       }
     ],
     "stream": false
@@ -288,7 +288,7 @@ matrix, generated paths, and launch commands.
 
 ### Pi Agent
 
-FreeQwenApi exposes Qwen, DeepSeek, and Kimi through one `freeai` provider. Pi can
+FreeKimiQwenDeepseekApi exposes Qwen, DeepSeek, and Kimi through one `freeai` provider. Pi can
 switch between all available models with `/model` while keeping its local
 session and each provider's native remote chat stable.
 
@@ -446,7 +446,7 @@ All routes are mounted under `/api`.
 
 `/chat/completions` accepts OpenAI-style `tools`, legacy `functions`, and tool
 result messages. Qwen Chat does not expose native OpenAI tool schemas, so
-FreeQwenApi translates tool definitions into a controlled prompt and converts
+FreeKimiQwenDeepseekApi translates tool definitions into a controlled prompt and converts
 the model output back into `message.tool_calls`.
 
 ## Authentication and Accounts
@@ -536,8 +536,8 @@ Authentication must run on the host because production containers do not have
 an interactive desktop browser:
 
 ```bash
-git clone https://github.com/kravchenski/FreeQwenApi.git
-cd FreeQwenApi
+git clone https://github.com/kravchenski/FreeKimiQwenDeepseekApi.git
+cd FreeKimiQwenDeepseekApi
 
 bun install --frozen-lockfile
 bun run auth
@@ -590,10 +590,10 @@ starting Compose.
 GitHub Actions publishes a separate multi-architecture image for every service:
 
 ```bash
-docker pull ghcr.io/kravchenski/freeqwenapi/qwen:latest
-docker pull ghcr.io/kravchenski/freeqwenapi/deepseek:latest
-docker pull ghcr.io/kravchenski/freeqwenapi/kimi:latest
-docker pull ghcr.io/kravchenski/freeqwenapi/gateway:latest
+docker pull ghcr.io/kravchenski/freekimiqwendeepseekapi/qwen:latest
+docker pull ghcr.io/kravchenski/freekimiqwendeepseekapi/deepseek:latest
+docker pull ghcr.io/kravchenski/freekimiqwendeepseekapi/kimi:latest
+docker pull ghcr.io/kravchenski/freekimiqwendeepseekapi/gateway:latest
 ```
 
 The `latest` tag tracks the default branch. Every image is also published with
@@ -603,10 +603,10 @@ tags.
 Use the published images with the same Compose file:
 
 ```bash
-export FREEAI_QWEN_IMAGE=ghcr.io/kravchenski/freeqwenapi/qwen:latest
-export FREEAI_DEEPSEEK_IMAGE=ghcr.io/kravchenski/freeqwenapi/deepseek:latest
-export FREEAI_KIMI_IMAGE=ghcr.io/kravchenski/freeqwenapi/kimi:latest
-export FREEAI_GATEWAY_IMAGE=ghcr.io/kravchenski/freeqwenapi/gateway:latest
+export FREEAI_QWEN_IMAGE=ghcr.io/kravchenski/freekimiqwendeepseekapi/qwen:latest
+export FREEAI_DEEPSEEK_IMAGE=ghcr.io/kravchenski/freekimiqwendeepseekapi/deepseek:latest
+export FREEAI_KIMI_IMAGE=ghcr.io/kravchenski/freekimiqwendeepseekapi/kimi:latest
+export FREEAI_GATEWAY_IMAGE=ghcr.io/kravchenski/freekimiqwendeepseekapi/gateway:latest
 docker compose pull
 docker compose up -d --no-build
 ```
@@ -687,12 +687,12 @@ bun run start:full -- --service gateway
 
 ## Author
 
-FreeQwenApi is developed and maintained by
+FreeKimiQwenDeepseekApi is developed and maintained by
 [`kravchenski`](https://github.com/kravchenski).
 
 ## License
 
-FreeQwenApi is released under the [MIT License](LICENSE).
+FreeKimiQwenDeepseekApi is released under the [MIT License](LICENSE).
 
 Copyright (c) 2026 kravchenski.
 
@@ -799,7 +799,7 @@ Refresh metadata with `bun run models:sync`, or add the model to
 
 ## Disclaimer
 
-FreeQwenApi is an independent community project. It is not affiliated with,
+FreeKimiQwenDeepseekApi is an independent community project. It is not affiliated with,
 endorsed by, or supported by Alibaba Cloud or the Qwen team. You are responsible
 for complying with Qwen's terms, applicable laws, and the policies of any
 connected service.

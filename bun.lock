@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "qwen-api-proxy",
+      "name": "free-kimi-qwen-deepseek-api",
       "dependencies": {
         "axios": "^1.9.0",
         "body-parser": "^1.20.2",

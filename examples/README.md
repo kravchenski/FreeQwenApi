@@ -1,6 +1,6 @@
-# Примеры FreeQwenApi
+# Примеры FreeKimiQwenDeepseekApi
 
-Здесь собраны готовые примеры для OpenAI-совместимого API FreeQwenApi:
+Здесь собраны готовые примеры для OpenAI-совместимого API FreeKimiQwenDeepseekApi:
 TypeScript, Python, Pi Agent, Hermes Agent и LiteLLM.
 
 ## Установка и запуск

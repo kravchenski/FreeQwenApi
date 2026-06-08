@@ -1,6 +1,6 @@
 # pi agent
 
-FreeQwenApi exposes Qwen and DeepSeek through one OpenAI-compatible gateway,
+FreeKimiQwenDeepseekApi exposes Qwen, DeepSeek, and Kimi through one OpenAI-compatible gateway,
 including streaming, tool calls, and persistent remote chat mappings.
 
 ```bash

@@ -1,4 +1,4 @@
-# LiteLLM bridge for Codex / Claude Code -> FreeQwenApi -> Qwen / DeepSeek
+# LiteLLM bridge for Codex / Claude Code -> FreeKimiQwenDeepseekApi -> Qwen / DeepSeek / Kimi
 # Generate a complete current model list with `bun run setup:agents`.
 # Start: litellm --config examples/litellm/freeai_litellm.yaml --host 127.0.0.1 --port 4000
 

@@ -1,6 +1,6 @@
 # Platform Support
 
-FreeQwenApi uses Bun for the host runtime and supports:
+FreeKimiQwenDeepseekApi uses Bun for the host runtime and supports:
 
 | Platform | Native Qwen | Native DeepSeek | Native Kimi | Docker Compose | CI |
 | --- | --- | --- | --- | --- |
