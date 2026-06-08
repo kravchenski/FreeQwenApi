@@ -596,6 +596,10 @@ docker pull ghcr.io/kravchenski/freeqwenapi/kimi:latest
 docker pull ghcr.io/kravchenski/freeqwenapi/gateway:latest
 ```
 
+The `latest` tag tracks the default branch. Every image is also published with
+an immutable `sha-*` tag; version tags additionally publish semantic-version
+tags.
+
 Use the published images with the same Compose file:
 
 ```bash
