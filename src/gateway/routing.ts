@@ -1,7 +1,11 @@
 const DEEPSEEK_MODEL_PREFIX = 'deepseek-';
+const KIMI_MODEL_PREFIX = 'kimi-';
 
-export function targetForModel(model: unknown, qwenUrl: string, deepSeekUrl: string) {
-    return typeof model === 'string' && model.startsWith(DEEPSEEK_MODEL_PREFIX) ? deepSeekUrl : qwenUrl;
+export function targetForModel(model: unknown, qwenUrl: string, deepSeekUrl: string, kimiUrl?: string) {
+    if (typeof model !== 'string') return qwenUrl;
+    if (model.startsWith(DEEPSEEK_MODEL_PREFIX)) return deepSeekUrl;
+    if (kimiUrl && model.startsWith(KIMI_MODEL_PREFIX)) return kimiUrl;
+    return qwenUrl;
 }
 
 export function extractConversationId(

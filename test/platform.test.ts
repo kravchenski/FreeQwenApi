@@ -15,6 +15,10 @@ describe('cross-platform runtime', () => {
             env: { CHROME_PATH: '/qwen', DEEPSEEK_CHROME_PATH: '/deepseek' },
             preferredEnvKeys: ['DEEPSEEK_CHROME_PATH', 'CHROME_PATH']
         })).toBe('/deepseek');
+        expect(findBrowserExecutable({
+            env: { CHROME_PATH: '/qwen', KIMI_CHROME_PATH: '/kimi' },
+            preferredEnvKeys: ['KIMI_CHROME_PATH', 'CHROME_PATH']
+        })).toBe('/kimi');
         expect(browserCandidates('linux', {}, true)).not.toContain('/usr/bin/chromium-headless-shell');
     });
 
@@ -24,6 +28,7 @@ describe('cross-platform runtime', () => {
             runChecks: false,
             syncModels: false
         });
+        expect(parseStartupArgs(['--service=kimi', '--skip-sync']).service).toBe('kimi');
         expect(() => parseStartupArgs(['--service', 'unknown'])).toThrow();
     });
 });

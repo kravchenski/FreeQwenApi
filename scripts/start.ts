@@ -1,5 +1,6 @@
 import { hasValidTokens } from '../src/api/tokenManager.ts';
 import { hasValidDeepSeekAccounts } from '../src/providers/deepseek/accounts.ts';
+import { hasValidKimiAccounts } from '../src/providers/kimi/accounts.ts';
 import { parseStartupArgs, type Service } from '../src/cli/startup.ts';
 
 const usage = `Usage: bun run start:full -- [options]
@@ -7,7 +8,7 @@ const usage = `Usage: bun run start:full -- [options]
 Cross-platform install, validation, authentication, and startup.
 
 Options:
-  --service <qwen|deepseek|gateway>  Service to start (default: qwen)
+  --service <qwen|deepseek|kimi|gateway>  Service to start (default: qwen)
   --auth                            Always open the selected provider login flow
   --skip-auth                       Skip account validation and login
   --skip-checks                     Skip offline analysis, tests, and build validation
@@ -39,16 +40,20 @@ async function requireSuccess(args: string[], env: Record<string, string> = {}) 
 function hasAccount(service: Service) {
     if (service === 'qwen') return hasValidTokens();
     if (service === 'deepseek') return hasValidDeepSeekAccounts() || Boolean(process.env.DEEPSEEK_TOKEN);
+    if (service === 'kimi') return hasValidKimiAccounts() || Boolean(process.env.KIMI_TOKEN);
     return true;
 }
 
 async function authenticate(service: Service) {
     if (service === 'qwen') return requireSuccess(['run', 'auth', '--', '--add']);
     if (service === 'deepseek') return requireSuccess(['run', 'auth:deepseek', '--', '--add']);
+    if (service === 'kimi') return requireSuccess(['run', 'auth:kimi', '--', '--add']);
 }
 
 async function start(service: Service) {
-    const script = service === 'qwen' ? 'start' : service === 'deepseek' ? 'start:deepseek' : 'start:gateway';
+    const script = service === 'qwen' ? 'start' :
+        service === 'deepseek' ? 'start:deepseek' :
+            service === 'kimi' ? 'start:kimi' : 'start:gateway';
     const code = await run(['run', script], service === 'gateway' ? {} : { SKIP_ACCOUNT_MENU: 'true' });
     process.exitCode = code;
 }
