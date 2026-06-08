@@ -38,7 +38,7 @@ describe('agent integration setup', () => {
         const home = await mkdtemp(join(tmpdir(), 'freeqwenapi-agents-'));
         const paths = integrationPaths(home);
         const options = parseAgentSetupArgs(['--all', '--home', home]);
-        const models = ['qwen3-coder-plus', 'deepseek-default'];
+        const models = ['qwen3-coder-plus', 'qwen3.7-max', 'deepseek-default', 'kimi-k2.6-thinking'];
 
         try {
             await mkdir(join(home, '.pi', 'agent'), { recursive: true });
@@ -66,7 +66,7 @@ describe('agent integration setup', () => {
 
             const continueConfig = parseYaml(await readFile(paths.continue, 'utf8'));
             expect(continueConfig.rules).toEqual(['Keep this']);
-            expect(continueConfig.models).toHaveLength(2);
+            expect(continueConfig.models).toHaveLength(models.length);
 
             const hermes = parseYaml(await readFile(paths.hermes, 'utf8'));
             expect(hermes.custom_providers[0].name).toBe('freeai');
@@ -74,15 +74,25 @@ describe('agent integration setup', () => {
 
             expect(await readFile(`${paths.pi}.freeqwenapi.bak`, 'utf8')).toContain('"theme":"dark"');
             expect(await readFile(paths.codex, 'utf8')).toContain('wire_api = "responses"');
+            expect(await readFile(paths.codex, 'utf8')).toContain('base_url = "http://127.0.0.1:3263/api/v1"');
+            expect(await readFile(paths.codex, 'utf8')).not.toContain('127.0.0.1:4000');
+            expect(await readFile(paths.codex, 'utf8')).toContain('model_catalog_json = "');
             expect(await readFile(paths.codex, 'utf8')).not.toContain('[profiles.freeai]');
             expect(await readFile(paths.codexBase, 'utf8')).toContain('approval_policy = "on-request"');
             expect(await readFile(paths.codexBase, 'utf8')).not.toContain('[profiles.freeai]');
+            expect(await readFile(paths.codexBase, 'utf8')).toContain('model_catalog_json = "');
             expect(await readFile(`${paths.codexBase}.freeqwenapi.bak`, 'utf8')).toContain('[profiles.freeai]');
             expect(await readFile(paths.claude, 'utf8')).toContain('ANTHROPIC_BASE_URL');
             expect(await readFile(paths.codex, 'utf8')).toContain('model_context_window = 131072');
             expect(await readFile(join(home, '.codex', 'freeai-deepseek-default.config.toml'), 'utf8')).toContain(
                 'model = "deepseek-default"'
             );
+            const codexCatalog = JSON.parse(await readFile(paths.codexModels, 'utf8'));
+            const qwenCatalogModel = codexCatalog.models.find((model: Record<string, any>) => model.slug === 'qwen3.7-max');
+            const kimiCatalogModel = codexCatalog.models.find((model: Record<string, any>) => model.slug === 'kimi-k2.6-thinking');
+            expect(qwenCatalogModel.context_window).toBe(131072);
+            expect(qwenCatalogModel.base_instructions).toContain('Never claim that a supplied tool or MCP server is unavailable');
+            expect(kimiCatalogModel.default_reasoning_level).toBe('high');
 
             const liteLlm = parseYaml(await readFile(paths.litellm, 'utf8'));
             expect(liteLlm.model_list[0].litellm_params.model).toBe(

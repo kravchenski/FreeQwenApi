@@ -274,8 +274,9 @@ bun run setup:agents
 ```
 
 The installer merges Pi Agent, OpenCode, Continue, and Hermes configurations,
-creates standalone Aider and Cline settings, and generates LiteLLM bridge
-profiles for Codex and Claude Code. Existing files receive a
+creates standalone Aider and Cline settings, configures Codex for the native
+Responses/MCP bridge, and generates an optional LiteLLM bridge for Claude Code.
+Existing files receive a
 `.freeqwenapi.bak` backup before the first change.
 
 ```bash

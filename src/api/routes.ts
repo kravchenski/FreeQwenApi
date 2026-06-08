@@ -318,7 +318,7 @@ function parseOpenAIMessages(messages) {
 
 function buildCombinedTools(tools, functions, toolChoice) {
     const combinedTools = tools || (functions ? functions.map(fn => ({ type: 'function', function: fn })) : null);
-    return { combinedTools, toolChoice };
+    return { combinedTools: normalizeToolDefinitions(combinedTools), toolChoice };
 }
 
 function stringifyOpenAIContent(content) {
@@ -432,7 +432,31 @@ function compactJsonSchema(schema, depth = 0) {
     return out;
 }
 
+export function normalizeToolDefinitions(tools) {
+    if (!Array.isArray(tools)) return tools;
+    return tools.flatMap(tool => {
+        if (tool?.type !== 'namespace' || !tool?.name || !Array.isArray(tool?.tools)) return [tool];
+        return tool.tools
+            .map(inner => {
+                const fn = inner?.function || inner;
+                if (!fn?.name) return null;
+                return {
+                    type: 'function',
+                    function: {
+                        name: fn.name,
+                        namespace: tool.name,
+                        qualified_name: `${tool.name}.${fn.name}`,
+                        description: [tool.description, fn.description].filter(Boolean).join('\n\n'),
+                        parameters: fn.parameters || { type: 'object', properties: {} }
+                    }
+                };
+            })
+            .filter(Boolean);
+    });
+}
+
 export function toolsToPrompt(tools) {
+    tools = normalizeToolDefinitions(tools);
     if (!Array.isArray(tools) || tools.length === 0) return '';
 
     const priorityNames = new Set([
@@ -445,7 +469,7 @@ export function toolsToPrompt(tools) {
         const fn = tool?.function || tool;
         if (!fn?.name) return null;
         return {
-            name: fn.name,
+            name: fn.qualified_name || (fn.namespace ? `${fn.namespace}.${fn.name}` : fn.name),
             description: truncateForPrompt(fn.description || '', priorityNames.has(fn.name) ? 420 : 180),
             parameters: compactJsonSchema(fn.parameters || { type: 'object', properties: {} }),
             priority: priorityNames.has(fn.name) ? 0 : 1
@@ -483,7 +507,9 @@ GENERAL TOOL RULES:
 - When an action, lookup, file read/write, command, web search, calculation, or verification is needed, CALL A TOOL instead of describing the action.
 - If the user asks you to do something, and a suitable tool exists, respond with a tool call first.
 - Never invent tool results. After tool results appear in the conversation, use them to continue.
-- Use exact tool names from the list above. Do not prefix names with namespaces.
+- Use exact tool names from the list above. Do not invent or rewrite namespace separators.
+- Bare MCP server labels such as mcp__playwright, mcp__context7, mcp__exa, mcp__memory, mcp__fal_ai, and mcp__sequential_thinking are NOT callable tool names.
+- For Playwright, call a concrete browser tool from the available tool names list. Never call bare mcp__playwright.
 - Never output an empty tool_calls array. If no tool is needed, answer the user normally in plain text.
 - For source-code changes, prefer patch/apply_patch. For a complete file replacement, use write/write_file with the final content.
 - For small exact replacements, edit is allowed. Keep oldText/newText source syntax valid and preserve all quotes, backticks, asterisks, and escapes.
@@ -752,9 +778,15 @@ function recoveredToolCalls(calls, allowedNames) {
 
 export function parseToolCallJson(content, tools = null) {
     if (typeof content !== 'string') return null;
-    const allowedNames = Array.isArray(tools)
-        ? new Set(tools.map(tool => (tool?.function || tool)?.name).filter(Boolean))
+    tools = normalizeToolDefinitions(tools);
+    const allowedTools = Array.isArray(tools)
+        ? new Map(tools.map(tool => {
+            const fn = tool?.function || tool;
+            const qualifiedName = fn?.qualified_name || (fn?.namespace ? `${fn.namespace}.${fn.name}` : fn?.name);
+            return [qualifiedName, fn];
+        }).filter(([name]) => Boolean(name)))
         : null;
+    const allowedNames = allowedTools ? new Set(allowedTools.keys()) : null;
     let text = content.trim();
     const fence = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
     if (fence) text = fence[1].trim();
@@ -796,10 +828,15 @@ export function parseToolCallJson(content, tools = null) {
                 const args = typeof normalizedArgs === 'string' ? normalizedArgs : JSON.stringify(normalizedArgs || {});
                 if (!name || (allowedNames && !allowedNames.has(name))) return null;
                 if (conversationalShellText(name, args)) return null;
+                const definition = allowedTools?.get(name);
                 return {
                     id: call.id || `call_${crypto.randomUUID().replace(/-/g, '').slice(0, 24)}`,
                     type: 'function',
-                    function: { name, arguments: args },
+                    function: {
+                        name: definition?.name || name,
+                        ...(definition?.namespace ? { namespace: definition.namespace } : {}),
+                        arguments: args
+                    },
                     index
                 };
             }).filter(Boolean);

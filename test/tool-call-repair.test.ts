@@ -11,6 +11,7 @@ import {
     recoverProseStyleToolCalls,
     recoverXmlStyleToolCall,
     parseToolCallJson,
+    normalizeToolDefinitions,
     repairEditArguments,
     repairToolCallJsonKeys,
     toolsToPrompt
@@ -62,6 +63,28 @@ describe('tool call JSON repair', () => {
         ]);
 
         expect(prompt).toContain('Available tool names exactly:\nedit');
+    });
+
+    test('tells models to call concrete Playwright tools instead of MCP server labels', () => {
+        const namespaceTools = [{
+            type: 'namespace',
+            name: 'mcp__playwright',
+            tools: [
+                { type: 'function', name: 'browser_navigate', parameters: { type: 'object' } },
+                { type: 'function', name: 'browser_snapshot', parameters: { type: 'object' } }
+            ]
+        }];
+        const prompt = toolsToPrompt(namespaceTools);
+
+        expect(prompt).toContain('Never call bare mcp__playwright');
+        expect(prompt).toContain('mcp__playwright.browser_navigate');
+        expect(normalizeToolDefinitions(namespaceTools)[0].function.qualified_name).toBe('mcp__playwright.browser_navigate');
+        const call = parseToolCallJson(
+            '{"tool_calls":[{"name":"mcp__playwright.browser_navigate","arguments":{"url":"https://example.com"}}]}',
+            namespaceTools
+        )?.[0].function;
+        expect(call?.name).toBe('browser_navigate');
+        expect(call?.namespace).toBe('mcp__playwright');
     });
 
     test('requires workspace inspection before codebase claims', () => {

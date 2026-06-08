@@ -39,6 +39,9 @@ const DEFAULT_BASE_URL = 'http://127.0.0.1:3263/api';
 const DEFAULT_BRIDGE_URL = 'http://127.0.0.1:4000';
 const DEFAULT_API_KEY = 'dummy-key';
 const DEFAULT_MODEL = 'qwen3-coder-plus';
+const CODEX_CONTEXT_WINDOW = 131072;
+const CODEX_AUTO_COMPACT_TOKEN_LIMIT = 98304;
+const CODEX_TOOL_OUTPUT_TOKEN_LIMIT = 16384;
 const AGENT_ALIASES: Record<string, AgentId> = {
     'pi-agent': 'pi',
     'open-code': 'opencode',
@@ -213,6 +216,7 @@ export function integrationPaths(home: string) {
         cline: join(bundle, 'cline-auth.txt'),
         codex: join(home, '.codex', 'freeai.config.toml'),
         codexBase: join(home, '.codex', 'config.toml'),
+        codexModels: join(home, '.codex', 'freeai-models.json'),
         continue: join(home, '.continue', 'config.yaml'),
         generic: join(bundle, 'openai.env'),
         hermes: join(home, '.hermes', 'config.yaml'),
@@ -283,8 +287,8 @@ function freeModel(id: string) {
         name: `Free ${displayName(id)}`,
         reasoning: id === 'deepseek-reasoner' || id.includes('kimi-k2.6-thinking'),
         input: ['text'],
-        contextWindow: 131072,
-        maxTokens: 16384,
+        contextWindow: CODEX_CONTEXT_WINDOW,
+        maxTokens: CODEX_TOOL_OUTPUT_TOKEN_LIMIT,
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
     };
 }
@@ -370,17 +374,83 @@ function mergeHermesConfig(current: Record<string, any>, options: AgentSetupOpti
     };
 }
 
+function codexReasoningEffort(model: string) {
+    if (model === 'deepseek-reasoner' || model.includes('kimi-k2.6-thinking')) return 'high';
+    if (model.includes('qwq') || model.includes('qvq')) return 'medium';
+    return 'none';
+}
+
+function codexModelCatalog(modelIds: string[]) {
+    const baseInstructions = [
+        'You are Codex, a coding agent.',
+        'All tools included in the current request are available and callable.',
+        'When the user asks to invoke, run, or use an available tool, call it immediately.',
+        'Never claim that a supplied tool or MCP server is unavailable without first attempting the tool call.',
+        'Bare MCP server labels such as mcp__playwright, mcp__context7, and mcp__exa are not tool names.',
+        'For Playwright, call a concrete browser tool supplied in the current request, never the bare server label.',
+        'Use the exact supplied tool name and valid arguments.'
+    ].join(' ');
+    const models = modelIds.map(id => {
+        const effort = codexReasoningEffort(id);
+        const supportsReasoning = effort !== 'none';
+        return {
+            slug: id,
+            display_name: displayName(id),
+            description: `FreeAI ${displayName(id)}`,
+            default_reasoning_level: effort,
+            supported_reasoning_levels: supportsReasoning
+                ? [
+                    { effort: 'low', description: 'Fast responses with lighter reasoning' },
+                    { effort: 'medium', description: 'Balanced reasoning' },
+                    { effort: 'high', description: 'Deeper reasoning' }
+                ]
+                : [],
+            shell_type: 'shell_command',
+            visibility: 'list',
+            supported_in_api: true,
+            priority: 1,
+            additional_speed_tiers: [],
+            service_tiers: [],
+            upgrade: null,
+            base_instructions: baseInstructions,
+            model_messages: {
+                instructions_template: '{{ base_instructions }}\n\n{{ developer_instructions }}',
+                instructions_variables: {}
+            },
+            supports_reasoning_summaries: supportsReasoning,
+            default_reasoning_summary: 'none',
+            support_verbosity: true,
+            default_verbosity: 'medium',
+            apply_patch_tool_type: 'freeform',
+            web_search_tool_type: 'text_and_image',
+            truncation_policy: { mode: 'tokens', limit: 10000 },
+            supports_parallel_tool_calls: true,
+            supports_image_detail_original: true,
+            experimental_supported_tools: [],
+            context_window: CODEX_CONTEXT_WINDOW,
+            max_context_window: CODEX_CONTEXT_WINDOW,
+            auto_compact_token_limit: CODEX_AUTO_COMPACT_TOKEN_LIMIT,
+            supports_search_tool: id.includes('search'),
+            input_modalities: ['text']
+        };
+    });
+    return `${JSON.stringify({ models }, null, 2)}\n`;
+}
+
 function codexProfile(options: AgentSetupOptions, model: string) {
-    return `# Codex requires an OpenAI Responses endpoint. Start LiteLLM with ~/.freeqwenapi/litellm.yaml.
+    const reasoningEffort = codexReasoningEffort(model);
+    return `# FreeQwenApi exposes a native Responses bridge that preserves MCP namespaces.
 model = "${model}"
 model_provider = "freeai"
-model_context_window = 131072
-model_auto_compact_token_limit = 98304
-tool_output_token_limit = 16384
+model_catalog_json = "${escapeDoubleQuoted(integrationPaths(options.home).codexModels)}"
+model_context_window = ${CODEX_CONTEXT_WINDOW}
+model_auto_compact_token_limit = ${CODEX_AUTO_COMPACT_TOKEN_LIMIT}
+tool_output_token_limit = ${CODEX_TOOL_OUTPUT_TOKEN_LIMIT}
+${reasoningEffort === 'none' ? '' : `model_reasoning_effort = "${reasoningEffort}"\n`}
 
 [model_providers.freeai]
-name = "FreeAI via LiteLLM"
-base_url = "${options.bridgeUrl}/v1"
+name = "FreeAI Responses Bridge"
+base_url = "${options.baseUrl}/v1"
 env_key = "FREEAI_API_KEY"
 wire_api = "responses"
 `;
@@ -401,13 +471,15 @@ async function installCodexProfiles(
         if (!isMissingFile(error)) throw error;
     }
 
-    const migratedBaseConfig = removeManagedBlock(baseConfig);
-    if (!options.dryRun && migratedBaseConfig !== baseConfig) {
-        await createBackup(paths.codexBase);
-        await writeFile(paths.codexBase, migratedBaseConfig);
-    }
-
     const results: InstallResult[] = [];
+    const baseCatalogConfig = `model_catalog_json = "${escapeDoubleQuoted(paths.codexModels)}"`;
+    results.push(await writeGeneratedFile(
+        paths.codexBase,
+        mergeManagedBlock(removeManagedBlock(baseConfig), baseCatalogConfig),
+        options,
+        'codex'
+    ));
+    results.push(await writeGeneratedFile(paths.codexModels, codexModelCatalog(modelIds), options, 'codex'));
     results.push(await writeGeneratedFile(paths.codex, codexProfile(options, preferredModel(modelIds)), options, 'codex'));
     for (const model of modelIds) {
         results.push(await writeGeneratedFile(
@@ -516,27 +588,27 @@ LiteLLM bridge endpoint: \`${options.bridgeUrl}\`
 - Aider: \`aider --config "${paths.aider}"\`
 - Cline: follow \`${paths.cline}\`
 
-## Bridge integrations
+## Responses integrations
 
-Codex and Claude Code do not use Chat Completions directly. Start LiteLLM
-without installing it globally:
-
-\`\`\`text
-uvx --from "litellm[proxy]" litellm --config "${paths.litellm}" --host 127.0.0.1 --port 4000
-\`\`\`
-
-Then run:
+Codex uses the native FreeQwenApi Responses bridge, which preserves MCP tool
+namespaces. Run:
 
 \`\`\`text
 FREEAI_API_KEY=${options.apiKey} codex -p freeai -m ${model}
 FREEAI_API_KEY=${options.apiKey} codex -p ${codexProfileName(model)}
-claude --settings "${paths.claude}" --model ${model}
 \`\`\`
 
 Codex profiles are generated for every model as \`freeai-<model>\`, for example
 \`codex -p freeai-kimi-k2-6-thinking\` and \`codex -p freeai-deepseek-reasoner\`.
 
 On PowerShell, set \`$env:FREEAI_API_KEY="${options.apiKey}"\` before starting Codex.
+
+Claude Code can still use the optional LiteLLM bridge:
+
+\`\`\`text
+uvx --from "litellm[proxy]" litellm --config "${paths.litellm}" --host 127.0.0.1 --port 4000
+claude --settings "${paths.claude}" --model ${model}
+\`\`\`
 
 ## GUI clients
 

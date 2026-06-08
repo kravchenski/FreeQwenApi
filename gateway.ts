@@ -2,6 +2,11 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { extractConversationId, mergeModelLists, targetForModel } from './src/gateway/routing.ts';
 import { bearerToken, isForwardableResponseHeader, tokenMatches } from './src/gateway/security.ts';
+import {
+    chatResponseToResponses,
+    responsesToChatRequest,
+    writeResponsesSse
+} from './src/gateway/responses.ts';
 
 const app = express();
 const port = Number(process.env.GATEWAY_PORT || 3263);
@@ -55,6 +60,30 @@ app.get(['/api/models', '/api/v1/models'], async (_req, res) => {
         res.json({ object: 'list', data });
     } catch (error) {
         res.status(502).json({ error: { message: error instanceof Error ? error.message : String(error) } });
+    }
+});
+
+app.post('/api/v1/responses', async (req, res) => {
+    try {
+        const body = req.body?.length ? JSON.parse(Buffer.from(req.body).toString('utf8')) : {};
+        const upstream = targetForModel(body.model, qwenUrl, deepSeekUrl, kimiUrl);
+        const { request, routes } = responsesToChatRequest(body);
+        const response = await fetch(`${upstream}/chat/completions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(request),
+            signal: AbortSignal.timeout(upstreamTimeout)
+        });
+        const payload = await response.json();
+        if (!response.ok) return res.status(response.status).json(payload);
+        const converted = chatResponseToResponses(payload, routes);
+        if (body.stream) return writeResponsesSse(res, converted);
+        return res.json(converted);
+    } catch (error) {
+        const message = error instanceof SyntaxError
+            ? 'Request body must be valid JSON'
+            : error instanceof Error ? error.message : String(error);
+        return res.status(error instanceof SyntaxError ? 400 : 502).json({ error: { message } });
     }
 });
 
