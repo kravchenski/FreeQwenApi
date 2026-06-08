@@ -90,6 +90,17 @@ FREEAI_API_KEY=dummy-key codex -p freeai -m qwen3-coder-plus
 The installer preserves `~/.codex/config.toml`, migrates its old managed block,
 and updates only `~/.codex/freeai.config.toml` on subsequent runs.
 
+It also creates one profile per generated model:
+
+```text
+codex -p freeai-qwen3-coder-plus
+codex -p freeai-deepseek-reasoner
+codex -p freeai-kimi-k2-6-thinking
+```
+
+Every generated profile includes manual context-window metadata and inherits
+MCP servers from the base Codex config.
+
 PowerShell:
 
 ```powershell

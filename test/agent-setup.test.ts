@@ -79,6 +79,10 @@ describe('agent integration setup', () => {
             expect(await readFile(paths.codexBase, 'utf8')).not.toContain('[profiles.freeai]');
             expect(await readFile(`${paths.codexBase}.freeqwenapi.bak`, 'utf8')).toContain('[profiles.freeai]');
             expect(await readFile(paths.claude, 'utf8')).toContain('ANTHROPIC_BASE_URL');
+            expect(await readFile(paths.codex, 'utf8')).toContain('model_context_window = 131072');
+            expect(await readFile(join(home, '.codex', 'freeai-deepseek-default.config.toml'), 'utf8')).toContain(
+                'model = "deepseek-default"'
+            );
 
             const liteLlm = parseYaml(await readFile(paths.litellm, 'utf8'));
             expect(liteLlm.model_list[0].litellm_params.model).toBe(

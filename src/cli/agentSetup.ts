@@ -165,7 +165,7 @@ export async function installAgentIntegrations(
         }), options, 'aider'));
     }
     if (options.agents.includes('codex')) {
-        results.push(await installCodexProfile(paths, options, preferredModel(modelIds)));
+        results.push(...await installCodexProfiles(paths, options, modelIds));
     }
     if (options.agents.includes('claude')) {
         results.push(await writeGeneratedFile(
@@ -374,6 +374,9 @@ function codexProfile(options: AgentSetupOptions, model: string) {
     return `# Codex requires an OpenAI Responses endpoint. Start LiteLLM with ~/.freeqwenapi/litellm.yaml.
 model = "${model}"
 model_provider = "freeai"
+model_context_window = 131072
+model_auto_compact_token_limit = 98304
+tool_output_token_limit = 16384
 
 [model_providers.freeai]
 name = "FreeAI via LiteLLM"
@@ -386,11 +389,11 @@ wire_api = "responses"
 const MANAGED_BLOCK_START = '# >>> FreeQwenApi managed block >>>';
 const MANAGED_BLOCK_END = '# <<< FreeQwenApi managed block <<<';
 
-async function installCodexProfile(
+async function installCodexProfiles(
     paths: ReturnType<typeof integrationPaths>,
     options: AgentSetupOptions,
-    model: string
-): Promise<InstallResult> {
+    modelIds: string[]
+): Promise<InstallResult[]> {
     let baseConfig = '';
     try {
         baseConfig = await readFile(paths.codexBase, 'utf8');
@@ -404,7 +407,17 @@ async function installCodexProfile(
         await writeFile(paths.codexBase, migratedBaseConfig);
     }
 
-    return writeGeneratedFile(paths.codex, codexProfile(options, model), options, 'codex');
+    const results: InstallResult[] = [];
+    results.push(await writeGeneratedFile(paths.codex, codexProfile(options, preferredModel(modelIds)), options, 'codex'));
+    for (const model of modelIds) {
+        results.push(await writeGeneratedFile(
+            codexModelProfilePath(options.home, model),
+            codexProfile(options, model),
+            options,
+            'codex'
+        ));
+    }
+    return results;
 }
 
 function mergeManagedBlock(existing: string, content: string) {
@@ -480,6 +493,14 @@ function liteLlmConfig(options: AgentSetupOptions, modelIds: string[]) {
     };
 }
 
+function codexModelProfilePath(home: string, model: string) {
+    return join(home, '.codex', `${codexProfileName(model)}.config.toml`);
+}
+
+function codexProfileName(model: string) {
+    return `freeai-${model.replace(/[^A-Za-z0-9_-]/g, '-')}`;
+}
+
 function integrationReadme(options: AgentSetupOptions, paths: ReturnType<typeof integrationPaths>, model: string) {
     return `# FreeQwenApi Agent Integrations
 
@@ -508,8 +529,12 @@ Then run:
 
 \`\`\`text
 FREEAI_API_KEY=${options.apiKey} codex -p freeai -m ${model}
+FREEAI_API_KEY=${options.apiKey} codex -p ${codexProfileName(model)}
 claude --settings "${paths.claude}" --model ${model}
 \`\`\`
+
+Codex profiles are generated for every model as \`freeai-<model>\`, for example
+\`codex -p freeai-kimi-k2-6-thinking\` and \`codex -p freeai-deepseek-reasoner\`.
 
 On PowerShell, set \`$env:FREEAI_API_KEY="${options.apiKey}"\` before starting Codex.
 

@@ -630,6 +630,12 @@ uvx --from "litellm[proxy]" litellm --config ~/.freeqwenapi/litellm.yaml --host 
 FREEAI_API_KEY="${GATEWAY_API_KEY:-dummy-key}" codex -p freeai
 ```
 
+`bun run setup:agents -- --agent codex` also generates one Codex profile per
+model, such as `freeai-qwen3-coder-plus`, `freeai-deepseek-reasoner`, and
+`freeai-kimi-k2-6-thinking`. These profiles include manual context metadata so
+Codex does not fall back to unknown-model defaults, and they inherit MCP servers
+from your base `~/.codex/config.toml`.
+
 ## Development
 
 ```bash
