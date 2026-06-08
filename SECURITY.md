@@ -10,6 +10,18 @@ FreeQwenApi stores authenticated provider state locally. Never publish:
 - logs containing provider responses
 - `.env` files
 
+Account files and persistent remote-chat maps are written with mode `0600`.
+The Docker Compose configuration binds public host ports to `127.0.0.1` and
+drops Linux capabilities by default.
+
+## Safe Deployment
+
+- Keep the unified gateway on localhost unless a trusted reverse proxy protects it.
+- Set `GATEWAY_API_KEY` when other local users or processes are not trusted.
+- Never commit `session/`, logs, browser profiles, or a populated `.env`.
+- Rotate provider tokens immediately if a session directory is exposed.
+- Run `bun run audit` and `bun run ci` before releases.
+
 If credentials are exposed, revoke or refresh them immediately.
 
 ## Reporting

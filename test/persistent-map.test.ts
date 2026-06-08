@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { mkdtempSync } from 'node:fs';
+import { mkdtempSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PersistentStringMap } from '../src/utils/persistentMap.ts';
@@ -9,5 +9,6 @@ describe('PersistentStringMap', () => {
         const file = join(mkdtempSync(join(tmpdir(), 'free-ai-map-')), 'sessions.json');
         new PersistentStringMap(file).set('pi-session', 'remote-chat');
         expect(new PersistentStringMap(file).get('pi-session')).toBe('remote-chat');
+        if (process.platform !== 'win32') expect(statSync(file).mode & 0o777).toBe(0o600);
     });
 });

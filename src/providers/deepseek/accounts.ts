@@ -22,15 +22,29 @@ export function loadDeepSeekAccounts(): DeepSeekAccount[] {
     ensureStorage();
     if (!fs.existsSync(accountsFile)) return [];
     try {
-        return JSON.parse(fs.readFileSync(accountsFile, 'utf8'));
+        const accounts = JSON.parse(fs.readFileSync(accountsFile, 'utf8'));
+        return Array.isArray(accounts) ? accounts.filter(isDeepSeekAccount) : [];
     } catch {
         return [];
     }
 }
 
+function isDeepSeekAccount(value: unknown): value is DeepSeekAccount {
+    const account = value as Partial<DeepSeekAccount>;
+    return Boolean(
+        account &&
+        typeof account.id === 'string' &&
+        typeof account.token === 'string' &&
+        Array.isArray(account.cookies)
+    );
+}
+
 function saveDeepSeekAccounts(accounts: DeepSeekAccount[]) {
     ensureStorage();
-    fs.writeFileSync(accountsFile, JSON.stringify(accounts, null, 2), 'utf8');
+    const temporary = `${accountsFile}.tmp`;
+    fs.writeFileSync(temporary, `${JSON.stringify(accounts, null, 2)}\n`, { mode: 0o600 });
+    fs.renameSync(temporary, accountsFile);
+    fs.chmodSync(accountsFile, 0o600);
 }
 
 export function addDeepSeekAccount(account: DeepSeekAccount) {

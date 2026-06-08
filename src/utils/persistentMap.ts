@@ -30,7 +30,8 @@ export class PersistentStringMap {
     #save() {
         fs.mkdirSync(path.dirname(this.#file), { recursive: true });
         const temporary = `${this.#file}.tmp`;
-        fs.writeFileSync(temporary, `${JSON.stringify(Object.fromEntries(this.#values), null, 2)}\n`);
+        fs.writeFileSync(temporary, `${JSON.stringify(Object.fromEntries(this.#values), null, 2)}\n`, { mode: 0o600 });
         fs.renameSync(temporary, this.#file);
+        fs.chmodSync(this.#file, 0o600);
     }
 }
