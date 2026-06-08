@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.light
-    image: ${FREEAI_LIGHT_IMAGE:-free-ai-light:latest}
+    image: ${FREEAI_GATEWAY_IMAGE:-free-ai-gateway:latest}
     command: ["bun", "run", "gateway.ts"]
     environment:
       - GATEWAY_PORT=3263
@@ -64,7 +64,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.light
-    image: ${FREEAI_LIGHT_IMAGE:-free-ai-light:latest}
+    image: ${FREEAI_DEEPSEEK_IMAGE:-deepseek-web-proxy:latest}
     command: ["bun", "run", "deepseek.ts"]
     environment:
       - NODE_ENV=production
@@ -90,7 +90,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.light
-    image: ${FREEAI_LIGHT_IMAGE:-free-ai-light:latest}
+    image: ${FREEAI_KIMI_IMAGE:-kimi-web-proxy:latest}
     command: ["bun", "run", "kimi.ts"]
     environment:
       - NODE_ENV=production

@@ -51,9 +51,15 @@ jobs:
           - image: qwen
             dockerfile: Dockerfile
             cache-scope: release-qwen
-          - image: light
+          - image: gateway
             dockerfile: Dockerfile.light
-            cache-scope: release-light
+            cache-scope: release-gateway
+          - image: deepseek
+            dockerfile: Dockerfile.light
+            cache-scope: release-deepseek
+          - image: kimi
+            dockerfile: Dockerfile.light
+            cache-scope: release-kimi
     permissions:
       contents: read
       packages: write

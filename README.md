@@ -558,19 +558,22 @@ starting Compose.
 
 ### Published Image
 
-GitHub Actions publishes two multi-architecture images to GitHub Container
-Registry:
+GitHub Actions publishes a separate multi-architecture image for every service:
 
 ```bash
 docker pull ghcr.io/kravchenski/freeqwenapi/qwen:latest
-docker pull ghcr.io/kravchenski/freeqwenapi/light:latest
+docker pull ghcr.io/kravchenski/freeqwenapi/deepseek:latest
+docker pull ghcr.io/kravchenski/freeqwenapi/kimi:latest
+docker pull ghcr.io/kravchenski/freeqwenapi/gateway:latest
 ```
 
 Use the published images with the same Compose file:
 
 ```bash
 export FREEAI_QWEN_IMAGE=ghcr.io/kravchenski/freeqwenapi/qwen:latest
-export FREEAI_LIGHT_IMAGE=ghcr.io/kravchenski/freeqwenapi/light:latest
+export FREEAI_DEEPSEEK_IMAGE=ghcr.io/kravchenski/freeqwenapi/deepseek:latest
+export FREEAI_KIMI_IMAGE=ghcr.io/kravchenski/freeqwenapi/kimi:latest
+export FREEAI_GATEWAY_IMAGE=ghcr.io/kravchenski/freeqwenapi/gateway:latest
 docker compose pull
 docker compose up -d --no-build
 ```
