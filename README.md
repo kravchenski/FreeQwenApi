@@ -621,12 +621,12 @@ docker compose up -d
 
 ### Add Codex
 
-The installer appends a managed `freeai` profile to the existing
-`~/.codex/config.toml` without replacing unrelated Codex settings:
+The installer creates the current Codex profile file
+`~/.codex/freeai.config.toml` and preserves unrelated Codex settings:
 
 ```bash
 bun run setup:agents -- --agent codex --api-key "${GATEWAY_API_KEY:-dummy-key}"
-litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
+uvx --from "litellm[proxy]" litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
 FREEAI_API_KEY="${GATEWAY_API_KEY:-dummy-key}" codex -p freeai
 ```
 

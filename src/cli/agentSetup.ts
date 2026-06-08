@@ -165,12 +165,7 @@ export async function installAgentIntegrations(
         }), options, 'aider'));
     }
     if (options.agents.includes('codex')) {
-        results.push(await updateManagedTextFile(
-            paths.codex,
-            codexProfile(options, preferredModel(modelIds)),
-            options,
-            'codex'
-        ));
+        results.push(await installCodexProfile(paths, options, preferredModel(modelIds)));
     }
     if (options.agents.includes('claude')) {
         results.push(await writeGeneratedFile(
@@ -216,7 +211,8 @@ export function integrationPaths(home: string) {
         aider: join(home, '.aider.freeqwenapi.yml'),
         claude: join(home, '.claude', 'freeai-settings.json'),
         cline: join(bundle, 'cline-auth.txt'),
-        codex: join(home, '.codex', 'config.toml'),
+        codex: join(home, '.codex', 'freeai.config.toml'),
+        codexBase: join(home, '.codex', 'config.toml'),
         continue: join(home, '.continue', 'config.yaml'),
         generic: join(bundle, 'openai.env'),
         hermes: join(home, '.hermes', 'config.yaml'),
@@ -376,7 +372,6 @@ function mergeHermesConfig(current: Record<string, any>, options: AgentSetupOpti
 
 function codexProfile(options: AgentSetupOptions, model: string) {
     return `# Codex requires an OpenAI Responses endpoint. Start LiteLLM with ~/.freeqwenapi/litellm.yaml.
-[profiles.freeai]
 model = "${model}"
 model_provider = "freeai"
 
@@ -391,6 +386,27 @@ wire_api = "responses"
 const MANAGED_BLOCK_START = '# >>> FreeQwenApi managed block >>>';
 const MANAGED_BLOCK_END = '# <<< FreeQwenApi managed block <<<';
 
+async function installCodexProfile(
+    paths: ReturnType<typeof integrationPaths>,
+    options: AgentSetupOptions,
+    model: string
+): Promise<InstallResult> {
+    let baseConfig = '';
+    try {
+        baseConfig = await readFile(paths.codexBase, 'utf8');
+    } catch (error) {
+        if (!isMissingFile(error)) throw error;
+    }
+
+    const migratedBaseConfig = removeManagedBlock(baseConfig);
+    if (!options.dryRun && migratedBaseConfig !== baseConfig) {
+        await createBackup(paths.codexBase);
+        await writeFile(paths.codexBase, migratedBaseConfig);
+    }
+
+    return writeGeneratedFile(paths.codex, codexProfile(options, model), options, 'codex');
+}
+
 function mergeManagedBlock(existing: string, content: string) {
     const block = `${MANAGED_BLOCK_START}\n${content.trim()}\n${MANAGED_BLOCK_END}\n`;
     const start = existing.indexOf(MANAGED_BLOCK_START);
@@ -401,6 +417,16 @@ function mergeManagedBlock(existing: string, content: string) {
         return `${existing.slice(0, start)}${block}${existing.slice(suffixStart).replace(/^\n+/, '')}`;
     }
     return existing.trim() ? `${existing.trimEnd()}\n\n${block}` : block;
+}
+
+function removeManagedBlock(existing: string) {
+    const start = existing.indexOf(MANAGED_BLOCK_START);
+    const end = existing.indexOf(MANAGED_BLOCK_END);
+    if (start < 0 || end < start) return existing;
+
+    const suffixStart = end + MANAGED_BLOCK_END.length;
+    const merged = `${existing.slice(0, start).trimEnd()}\n${existing.slice(suffixStart).trimStart()}`;
+    return merged.trim() ? `${merged.trim()}\n` : '';
 }
 
 function claudeSettings(options: AgentSetupOptions) {
@@ -443,7 +469,7 @@ function liteLlmConfig(options: AgentSetupOptions, modelIds: string[]) {
         model_list: modelIds.map(id => ({
             model_name: id,
             litellm_params: {
-                model: `openai/${id}`,
+                model: `openai/chat_completions/${id}`,
                 api_base: options.baseUrl,
                 api_key: options.apiKey
             }
@@ -471,10 +497,11 @@ LiteLLM bridge endpoint: \`${options.bridgeUrl}\`
 
 ## Bridge integrations
 
-Codex and Claude Code do not use Chat Completions directly. Start LiteLLM first:
+Codex and Claude Code do not use Chat Completions directly. Start LiteLLM
+without installing it globally:
 
 \`\`\`text
-litellm --config "${paths.litellm}" --host 127.0.0.1 --port 4000
+uvx --from "litellm[proxy]" litellm --config "${paths.litellm}" --host 127.0.0.1 --port 4000
 \`\`\`
 
 Then run:

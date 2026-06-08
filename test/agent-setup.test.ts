@@ -46,7 +46,10 @@ describe('agent integration setup', () => {
             await mkdir(join(home, '.continue'), { recursive: true });
             await writeFile(paths.continue, 'name: Existing\nversion: 1.0.0\nschema: v1\nrules:\n  - Keep this\n');
             await mkdir(join(home, '.codex'), { recursive: true });
-            await writeFile(paths.codex, 'approval_policy = "on-request"\n');
+            await writeFile(
+                paths.codexBase,
+                `approval_policy = "on-request"\n\n# >>> FreeQwenApi managed block >>>\n[profiles.freeai]\nmodel = "old"\n# <<< FreeQwenApi managed block <<<\n`
+            );
 
             const results = await installAgentIntegrations(options, models);
             expect(results.some(result => result.agent === 'codex' && result.status === 'installed')).toBeTrue();
@@ -71,9 +74,16 @@ describe('agent integration setup', () => {
 
             expect(await readFile(`${paths.pi}.freeqwenapi.bak`, 'utf8')).toContain('"theme":"dark"');
             expect(await readFile(paths.codex, 'utf8')).toContain('wire_api = "responses"');
-            expect(await readFile(paths.codex, 'utf8')).toContain('approval_policy = "on-request"');
-            expect(await readFile(paths.codex, 'utf8')).toContain('[profiles.freeai]');
+            expect(await readFile(paths.codex, 'utf8')).not.toContain('[profiles.freeai]');
+            expect(await readFile(paths.codexBase, 'utf8')).toContain('approval_policy = "on-request"');
+            expect(await readFile(paths.codexBase, 'utf8')).not.toContain('[profiles.freeai]');
+            expect(await readFile(`${paths.codexBase}.freeqwenapi.bak`, 'utf8')).toContain('[profiles.freeai]');
             expect(await readFile(paths.claude, 'utf8')).toContain('ANTHROPIC_BASE_URL');
+
+            const liteLlm = parseYaml(await readFile(paths.litellm, 'utf8'));
+            expect(liteLlm.model_list[0].litellm_params.model).toBe(
+                'openai/chat_completions/qwen3-coder-plus'
+            );
 
             const secondResults = await installAgentIntegrations(options, models);
             expect(secondResults.every(result => result.status === 'unchanged')).toBeTrue();

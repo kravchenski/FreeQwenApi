@@ -113,7 +113,7 @@ Codex ожидает OpenAI Responses API, Claude Code ожидает Anthropic 
 LiteLLM-конфиг как мост:
 
 ```bash
-litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
+uvx --from "litellm[proxy]" litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
 ```
 
 Запустите Codex или Claude Code:

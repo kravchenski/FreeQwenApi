@@ -26,7 +26,7 @@ third-party agent executables.
 | Aider | Direct | Creates `~/.aider.freeqwenapi.yml` |
 | Cline CLI and extension | Direct | Creates setup commands under `~/.freeqwenapi/` |
 | Open WebUI and Roo Code | Direct | Uses the generated generic OpenAI-compatible settings |
-| Codex CLI | LiteLLM bridge | Appends a managed `freeai` profile to `~/.codex/config.toml` |
+| Codex CLI | LiteLLM bridge | Creates `~/.codex/freeai.config.toml` |
 | Claude Code | LiteLLM bridge | Creates `~/.claude/freeai-settings.json` |
 | Cursor | Limited | Generic settings are documented, but direct compatibility is not guaranteed |
 
@@ -78,7 +78,7 @@ Cline CLI can be configured with the command generated in
 Start a LiteLLM proxy with the generated bridge configuration:
 
 ```text
-litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
+uvx --from "litellm[proxy]" litellm --config ~/.freeqwenapi/litellm.yaml --host 127.0.0.1 --port 4000
 ```
 
 Then start Codex:
@@ -87,8 +87,8 @@ Then start Codex:
 FREEAI_API_KEY=dummy-key codex -p freeai -m qwen3-coder-plus
 ```
 
-The installer preserves existing Codex settings and only replaces the block
-between the `FreeQwenApi managed block` markers on subsequent runs.
+The installer preserves `~/.codex/config.toml`, migrates its old managed block,
+and updates only `~/.codex/freeai.config.toml` on subsequent runs.
 
 PowerShell:
 
